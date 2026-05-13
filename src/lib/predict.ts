@@ -18,6 +18,8 @@ export type PredictState = Readonly<{
   vaultBalance: bigint;
   /** vault.total_mtm — outstanding liability to position holders. */
   vaultMtm: bigint;
+  /** vault.total_max_payout — outstanding face value the vault must keep. */
+  vaultTotalMaxPayout: bigint;
   /** PLP supply (treasury_cap.total_supply.value). */
   plpTotalSupply: bigint;
   raw: Record<string, unknown>;
@@ -32,6 +34,7 @@ export const getPredict = async (ctx: Ctx): Promise<PredictState> => {
   const vault = nestedFields(fields.vault);
   const vaultBalance = readBigInt(vault.balance);
   const vaultMtm = readBigInt(vault.total_mtm);
+  const vaultTotalMaxPayout = readBigInt(vault.total_max_payout);
   const vaultValue = vaultBalance > vaultMtm ? vaultBalance - vaultMtm : 0n;
   return Object.freeze({
     id: ctx.config.PREDICT_OBJECT_ID,
@@ -45,6 +48,7 @@ export const getPredict = async (ctx: Ctx): Promise<PredictState> => {
     withdrawalLimiter: nestedFields(fields.withdrawal_limiter),
     vaultBalance,
     vaultMtm,
+    vaultTotalMaxPayout,
     vaultValue,
     plpTotalSupply: parsePlpSupply(fields.treasury_cap),
     raw: fields,

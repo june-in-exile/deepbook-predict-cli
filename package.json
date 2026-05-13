@@ -13,6 +13,7 @@
     "preview": "tsx src/scripts/preview.ts",
     "redeem": "tsx src/scripts/redeem.ts",
     "lp-supply": "tsx src/scripts/lp-supply.ts",
+    "lp-withdraw": "tsx src/scripts/lp-withdraw.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
