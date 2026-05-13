@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDecimalAmount } from '../src/scripts/_cli.js';
+import { formatDecimal, parseDecimalAmount } from '../src/scripts/_cli.js';
 
 describe('parseDecimalAmount', () => {
   it('scales whole numbers', () => {
@@ -27,5 +27,25 @@ describe('parseDecimalAmount', () => {
     expect(() => parseDecimalAmount('abc', 6)).toThrow(/decimal number/);
     expect(() => parseDecimalAmount('1e6', 6)).toThrow(/decimal number/);
     expect(() => parseDecimalAmount('-1', 6)).toThrow(/decimal number/);
+  });
+});
+
+describe('formatDecimal', () => {
+  it('renders raw → human at the given precision', () => {
+    expect(formatDecimal(100_000_000n, 6n)).toBe('100');
+    expect(formatDecimal(123_456n, 6n)).toBe('0.123456');
+    expect(formatDecimal(0n, 6n)).toBe('0');
+  });
+  it('strips trailing zeros from the fraction', () => {
+    expect(formatDecimal(100_500_000n, 6n)).toBe('100.5');
+    expect(formatDecimal(100_120_000n, 6n)).toBe('100.12');
+  });
+  it('groups thousands when asked', () => {
+    expect(formatDecimal(1_234_567_890n, 6n, { groupThousands: true })).toBe('1,234.56789');
+    expect(formatDecimal(1_001_034_513_600n, 6n, { groupThousands: true })).toBe('1,001,034.5136');
+  });
+  it('handles negative values', () => {
+    expect(formatDecimal(-100n, 2n)).toBe('-1');
+    expect(formatDecimal(-1_234_500n, 6n, { groupThousands: true })).toBe('-1.2345');
   });
 });

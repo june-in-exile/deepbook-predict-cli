@@ -27,15 +27,22 @@ export const parseDecimalAmount = (human: string, decimals: number): bigint => {
   return BigInt(whole ?? '0') * 10n ** BigInt(decimals) + BigInt(padded || '0');
 };
 
-export const formatDecimal = (raw: bigint, decimals: bigint): string => {
+export const formatDecimal = (
+  raw: bigint,
+  decimals: bigint,
+  opts: { groupThousands?: boolean } = {},
+): string => {
   const sign = raw < 0n ? '-' : '';
   const abs = raw < 0n ? -raw : raw;
   const divisor = 10n ** decimals;
   const whole = abs / divisor;
   const frac = abs % divisor;
-  if (frac === 0n) return `${sign}${whole}`;
-  return `${sign}${whole}.${frac.toString().padStart(Number(decimals), '0').replace(/0+$/, '')}`;
+  const wholeStr = opts.groupThousands ? insertThousands(whole.toString()) : whole.toString();
+  if (frac === 0n) return `${sign}${wholeStr}`;
+  return `${sign}${wholeStr}.${frac.toString().padStart(Number(decimals), '0').replace(/0+$/, '')}`;
 };
+
+const insertThousands = (s: string): string => s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 /**
  * Resolve the sender address using, in order:

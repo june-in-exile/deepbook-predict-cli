@@ -90,16 +90,18 @@ const printSummary = (
   process.stdout.write(`  supply amount:      ${human} DUSDC (raw ${amount})\n`);
   process.stdout.write(`  sender:             ${sender}\n`);
   process.stdout.write(`  predict:            ${predict.id}\n`);
-  process.stdout.write(`  vault balance:      ${formatDecimal(predict.vaultBalance, QUOTE_DECIMALS)} DUSDC\n`);
-  process.stdout.write(`  vault MTM:          ${formatDecimal(predict.vaultMtm, QUOTE_DECIMALS)} DUSDC\n`);
-  process.stdout.write(`  vault value:        ${formatDecimal(predict.vaultValue, QUOTE_DECIMALS)} DUSDC (= balance - MTM)\n`);
-  process.stdout.write(`  PLP total supply:   ${formatDecimal(predict.plpTotalSupply, QUOTE_DECIMALS)} PLP\n`);
-  process.stdout.write(`  preview shares:     ${formatDecimal(shares, QUOTE_DECIMALS)} PLP (raw ${shares})\n`);
+  process.stdout.write(`  vault balance:      ${formatDecimal(predict.vaultBalance, QUOTE_DECIMALS, { groupThousands: true })} DUSDC\n`);
+  process.stdout.write(`  vault MTM:          ${formatDecimal(predict.vaultMtm, QUOTE_DECIMALS, { groupThousands: true })} DUSDC\n`);
+  process.stdout.write(`  vault value:        ${formatDecimal(predict.vaultValue, QUOTE_DECIMALS, { groupThousands: true })} DUSDC (= balance - MTM)\n`);
+  process.stdout.write(`  PLP total supply:   ${formatDecimal(predict.plpTotalSupply, QUOTE_DECIMALS, { groupThousands: true })} PLP\n`);
+  process.stdout.write(`  preview shares:     ${formatDecimal(shares, QUOTE_DECIMALS, { groupThousands: true })} PLP (raw ${shares})\n`);
   if (predict.plpTotalSupply === 0n) {
     process.stdout.write(`  (first supplier — 1:1 ratio)\n`);
   } else {
-    const ratioE9 = (predict.plpTotalSupply * 1_000_000_000n) / predict.vaultValue;
-    process.stdout.write(`  share/value ratio:  ${formatDecimal(ratioE9, 9n)} PLP per 1 DUSDC of vault_value\n`);
+    // Display the ratio to 6 decimal places — the trailing digits of a 9-decimal
+    // fixed-point are noise relative to the per-LP rounding error.
+    const ratioE6 = (predict.plpTotalSupply * 1_000_000n) / predict.vaultValue;
+    process.stdout.write(`  share/value ratio:  ${formatDecimal(ratioE6, 6n)} PLP per 1 DUSDC of vault_value\n`);
   }
 };
 

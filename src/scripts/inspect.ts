@@ -1,4 +1,5 @@
 import { createContext } from '../client.js';
+import { formatDecimal } from './_cli.js';
 import {
   getManager,
   getQuoteBalance,
@@ -20,13 +21,14 @@ const main = async (): Promise<void> => {
   const ctx = createContext();
   const predict = await getPredict(ctx);
   const manager = await getManager(ctx);
-  const [quoteBalance, binaryPositions, rangePositions, oracle, walletDusdc, walletPlp] = await Promise.all([
+  const [quoteBalance, binaryPositions, rangePositions, oracle, walletDusdc, walletPlp, walletSui] = await Promise.all([
     getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE),
     listBinaryPositions(ctx, manager),
     listRangePositions(ctx, manager),
     getOracle(ctx, ctx.config.ORACLE_OBJECT_ID),
     walletCoinBalance(ctx, manager.owner, ctx.config.QUOTE_COIN_TYPE),
     walletCoinBalance(ctx, manager.owner, plpCoinType(ctx)),
+    walletCoinBalance(ctx, manager.owner, '0x2::sui::SUI'),
   ]);
 
   if (wantsJson) {
@@ -34,7 +36,12 @@ const main = async (): Promise<void> => {
       predict,
       manager: { ...manager, quoteBalance, binaryPositions, rangePositions },
       oracle,
-      wallet: { owner: manager.owner, dusdc: walletDusdc.toString(), plp: walletPlp.toString() },
+      wallet: {
+        owner: manager.owner,
+        dusdc: walletDusdc.toString(),
+        plp: walletPlp.toString(),
+        sui: walletSui.toString(),
+      },
     };
     process.stdout.write(JSON.stringify(payload, jsonReplacer, 2) + '\n');
     return;
@@ -43,7 +50,7 @@ const main = async (): Promise<void> => {
   renderPredict(predict);
   renderManager(manager, quoteBalance, binaryPositions, rangePositions);
   renderOracle(oracle);
-  renderWallet(manager.owner, walletDusdc, walletPlp);
+  renderWallet(manager.owner, walletDusdc, walletPlp, walletSui);
 };
 
 const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: string, coinType: string): Promise<bigint> => {
@@ -53,13 +60,12 @@ const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: s
 
 const plpCoinType = (ctx: ReturnType<typeof createContext>): string => `${ctx.config.PACKAGE_ID}::plp::PLP`;
 
-const renderWallet = (owner: string, dusdc: bigint, plp: bigint): void => {
+const renderWallet = (owner: string, dusdc: bigint, plp: bigint, sui: bigint): void => {
   section('Wallet (manager owner)', [
     ['address', owner],
-    ['DUSDC (raw)', dusdc.toString()],
-    ['DUSDC', formatDecimal(dusdc, 6n)],
-    ['PLP (raw)', plp.toString()],
-    ['PLP', formatDecimal(plp, 6n)],
+    ['SUI (gas)', formatDecimal(sui, 9n, { groupThousands: true })],
+    ['DUSDC', formatDecimal(dusdc, 6n, { groupThousands: true })],
+    ['PLP', formatDecimal(plp, 6n, { groupThousands: true })],
   ]);
 };
 
@@ -87,7 +93,7 @@ const renderManager = (
     ['owner', m.owner],
     ['balance_manager_id', m.balanceManagerId],
     ['quote_balance (raw)', balance.toString()],
-    ['quote_balance (USDC)', formatDecimal(balance, 6n)],
+    ['quote_balance (USDC)', formatDecimal(balance, 6n, { groupThousands: true })],
     ['binary_positions', String(bin.length)],
     ['range_positions', String(rng.length)],
   ]);
@@ -120,9 +126,9 @@ const renderOracle = (o: OracleState): void => {
     ['expiry_ms', o.expiryMs.toString()],
     ['expiry (UTC)', new Date(Number(o.expiryMs)).toISOString()],
     ['timestamp_ms', o.timestampMs.toString()],
-    ['spot (price)', formatDecimal(o.spot, 9n)],
-    ['forward (price)', formatDecimal(o.forward, 9n)],
-    ['settlement_price', o.settlementPrice === null ? '(none)' : formatDecimal(o.settlementPrice, 9n)],
+    ['spot (price)', formatDecimal(o.spot, 9n, { groupThousands: true })],
+    ['forward (price)', formatDecimal(o.forward, 9n, { groupThousands: true })],
+    ['settlement_price', o.settlementPrice === null ? '(none)' : formatDecimal(o.settlementPrice, 9n, { groupThousands: true })],
     ['authorized_caps', String(o.authorizedCaps.length)],
   ]);
   section('OracleSVI — SVI params (all 1e9-scaled)', [
@@ -166,16 +172,6 @@ const flatten = (
   return out;
 };
 
-const formatDecimal = (raw: bigint, decimals: bigint): string => {
-  const sign = raw < 0n ? '-' : '';
-  const abs = raw < 0n ? -raw : raw;
-  const divisor = 10n ** decimals;
-  const whole = abs / divisor;
-  const frac = abs % divisor;
-  if (frac === 0n) return `${sign}${whole}`;
-  const fracStr = frac.toString().padStart(Number(decimals), '0').replace(/0+$/, '');
-  return `${sign}${whole}.${fracStr}`;
-};
 
 const jsonReplacer = (_key: string, value: unknown): unknown =>
   typeof value === 'bigint' ? value.toString() : value;
