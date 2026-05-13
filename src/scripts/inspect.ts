@@ -1,4 +1,17 @@
 import { createContext } from '../client.js';
+import {
+  getManager,
+  getQuoteBalance,
+  listBinaryPositions,
+  listRangePositions,
+  type ManagerState,
+  type Position,
+  type RangePosition,
+} from '../lib/manager.js';
+import {
+  getOracle,
+  type OracleState,
+} from '../lib/oracle.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
 
 const wantsJson = process.argv.includes('--json');
@@ -6,26 +19,98 @@ const wantsJson = process.argv.includes('--json');
 const main = async (): Promise<void> => {
   const ctx = createContext();
   const predict = await getPredict(ctx);
+  const manager = await getManager(ctx);
+  const [quoteBalance, binaryPositions, rangePositions, oracle] = await Promise.all([
+    getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE),
+    listBinaryPositions(ctx, manager),
+    listRangePositions(ctx, manager),
+    getOracle(ctx, ctx.config.ORACLE_OBJECT_ID),
+  ]);
+
   if (wantsJson) {
-    process.stdout.write(JSON.stringify(predict, jsonReplacer, 2) + '\n');
+    const payload = {
+      predict,
+      manager: { ...manager, quoteBalance, binaryPositions, rangePositions },
+      oracle,
+    };
+    process.stdout.write(JSON.stringify(payload, jsonReplacer, 2) + '\n');
     return;
   }
-  render(predict);
+
+  renderPredict(predict);
+  renderManager(manager, quoteBalance, binaryPositions, rangePositions);
+  renderOracle(oracle);
 };
 
-const render = (p: PredictState): void => {
+const renderPredict = (p: PredictState): void => {
   section('Predict', [
     ['id', p.id],
     ['trading_paused', String(p.tradingPaused)],
   ]);
-
   section('TreasuryConfig — accepted quotes', p.acceptedQuotes.map((q, i) => [`#${i + 1}`, q]));
-
   section('PricingConfig', flatten(p.pricingConfig));
   section('RiskConfig', flatten(p.riskConfig));
   section('OracleConfig', flatten(p.oracleConfig));
   section('Vault', flatten(p.vault));
   section('WithdrawalLimiter', flatten(p.withdrawalLimiter));
+};
+
+const renderManager = (
+  m: ManagerState,
+  balance: bigint,
+  bin: readonly Position[],
+  rng: readonly RangePosition[],
+): void => {
+  section('PredictManager', [
+    ['id', m.id],
+    ['owner', m.owner],
+    ['balance_manager_id', m.balanceManagerId],
+    ['quote_balance (raw)', balance.toString()],
+    ['quote_balance (USDC)', formatDecimal(balance, 6n)],
+    ['binary_positions', String(bin.length)],
+    ['range_positions', String(rng.length)],
+  ]);
+  if (bin.length > 0) {
+    section(
+      'PredictManager — binary positions',
+      bin.map((p, i) => [
+        `#${i + 1}`,
+        `${p.isUp ? 'UP  ' : 'DOWN'} strike=${formatDecimal(p.strike, 9n)} expiry=${p.expiryMs} qty=${p.quantity}`,
+      ]),
+    );
+  }
+  if (rng.length > 0) {
+    section(
+      'PredictManager — range positions',
+      rng.map((p, i) => [
+        `#${i + 1}`,
+        `(${formatDecimal(p.lowerStrike, 9n)} .. ${formatDecimal(p.higherStrike, 9n)}] expiry=${p.expiryMs} qty=${p.quantity}`,
+      ]),
+    );
+  }
+};
+
+const renderOracle = (o: OracleState): void => {
+  section('OracleSVI', [
+    ['id', o.id],
+    ['underlying_asset', o.underlyingAsset],
+    ['lifecycle', o.lifecycle],
+    ['active (flag)', String(o.active)],
+    ['expiry_ms', o.expiryMs.toString()],
+    ['expiry (UTC)', new Date(Number(o.expiryMs)).toISOString()],
+    ['timestamp_ms', o.timestampMs.toString()],
+    ['spot (price)', formatDecimal(o.spot, 9n)],
+    ['forward (price)', formatDecimal(o.forward, 9n)],
+    ['settlement_price', o.settlementPrice === null ? '(none)' : formatDecimal(o.settlementPrice, 9n)],
+    ['authorized_caps', String(o.authorizedCaps.length)],
+  ]);
+  section('OracleSVI — SVI params (all 1e9-scaled)', [
+    ['a', o.svi.a.toString()],
+    ['b', o.svi.b.toString()],
+    ['rho', o.svi.rho.toString()],
+    ['m', o.svi.m.toString()],
+    ['sigma', o.svi.sigma.toString()],
+  ]);
 };
 
 const section = (title: string, rows: ReadonlyArray<readonly [string, string]>): void => {
@@ -58,6 +143,17 @@ const flatten = (
     }
   }
   return out;
+};
+
+const formatDecimal = (raw: bigint, decimals: bigint): string => {
+  const sign = raw < 0n ? '-' : '';
+  const abs = raw < 0n ? -raw : raw;
+  const divisor = 10n ** decimals;
+  const whole = abs / divisor;
+  const frac = abs % divisor;
+  if (frac === 0n) return `${sign}${whole}`;
+  const fracStr = frac.toString().padStart(Number(decimals), '0').replace(/0+$/, '');
+  return `${sign}${whole}.${fracStr}`;
 };
 
 const jsonReplacer = (_key: string, value: unknown): unknown =>
