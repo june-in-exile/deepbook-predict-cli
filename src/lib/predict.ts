@@ -12,6 +12,14 @@ export type PredictState = Readonly<{
   oracleConfig: Record<string, unknown>;
   vault: Record<string, unknown>;
   withdrawalLimiter: Record<string, unknown>;
+  /** vault.balance - vault.total_mtm — what LPs claim against. */
+  vaultValue: bigint;
+  /** vault.balance — gross quote held in the vault. */
+  vaultBalance: bigint;
+  /** vault.total_mtm — outstanding liability to position holders. */
+  vaultMtm: bigint;
+  /** PLP supply (treasury_cap.total_supply.value). */
+  plpTotalSupply: bigint;
   raw: Record<string, unknown>;
 }>;
 
@@ -21,6 +29,10 @@ export const getPredict = async (ctx: Ctx): Promise<PredictState> => {
     options: { showContent: true, showType: true },
   });
   const fields = extractMoveFields(res, ctx.config.PREDICT_OBJECT_ID);
+  const vault = nestedFields(fields.vault);
+  const vaultBalance = readBigInt(vault.balance);
+  const vaultMtm = readBigInt(vault.total_mtm);
+  const vaultValue = vaultBalance > vaultMtm ? vaultBalance - vaultMtm : 0n;
   return Object.freeze({
     id: ctx.config.PREDICT_OBJECT_ID,
     tradingPaused: Boolean(fields.trading_paused),
@@ -29,10 +41,28 @@ export const getPredict = async (ctx: Ctx): Promise<PredictState> => {
     pricingConfig: nestedFields(fields.pricing_config),
     treasuryConfig: nestedFields(fields.treasury_config),
     oracleConfig: nestedFields(fields.oracle_config),
-    vault: nestedFields(fields.vault),
+    vault,
     withdrawalLimiter: nestedFields(fields.withdrawal_limiter),
+    vaultBalance,
+    vaultMtm,
+    vaultValue,
+    plpTotalSupply: parsePlpSupply(fields.treasury_cap),
     raw: fields,
   });
+};
+
+const parsePlpSupply = (raw: unknown): bigint => {
+  // TreasuryCap { id, total_supply: Supply<PLP> { value: u64 } }
+  const fields = nestedFields(raw);
+  const supply = nestedFields(fields.total_supply);
+  return readBigInt(supply.value);
+};
+
+const readBigInt = (v: unknown): bigint => {
+  if (typeof v === 'bigint') return v;
+  if (typeof v === 'number') return BigInt(v);
+  if (typeof v === 'string' && v.length > 0) return BigInt(v);
+  return 0n;
 };
 
 const extractMoveFields = (

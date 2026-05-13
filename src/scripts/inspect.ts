@@ -20,11 +20,13 @@ const main = async (): Promise<void> => {
   const ctx = createContext();
   const predict = await getPredict(ctx);
   const manager = await getManager(ctx);
-  const [quoteBalance, binaryPositions, rangePositions, oracle] = await Promise.all([
+  const [quoteBalance, binaryPositions, rangePositions, oracle, walletDusdc, walletPlp] = await Promise.all([
     getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE),
     listBinaryPositions(ctx, manager),
     listRangePositions(ctx, manager),
     getOracle(ctx, ctx.config.ORACLE_OBJECT_ID),
+    walletCoinBalance(ctx, manager.owner, ctx.config.QUOTE_COIN_TYPE),
+    walletCoinBalance(ctx, manager.owner, plpCoinType(ctx)),
   ]);
 
   if (wantsJson) {
@@ -32,6 +34,7 @@ const main = async (): Promise<void> => {
       predict,
       manager: { ...manager, quoteBalance, binaryPositions, rangePositions },
       oracle,
+      wallet: { owner: manager.owner, dusdc: walletDusdc.toString(), plp: walletPlp.toString() },
     };
     process.stdout.write(JSON.stringify(payload, jsonReplacer, 2) + '\n');
     return;
@@ -40,6 +43,24 @@ const main = async (): Promise<void> => {
   renderPredict(predict);
   renderManager(manager, quoteBalance, binaryPositions, rangePositions);
   renderOracle(oracle);
+  renderWallet(manager.owner, walletDusdc, walletPlp);
+};
+
+const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: string, coinType: string): Promise<bigint> => {
+  const res = await ctx.client.getBalance({ owner, coinType });
+  return BigInt(res.totalBalance);
+};
+
+const plpCoinType = (ctx: ReturnType<typeof createContext>): string => `${ctx.config.PACKAGE_ID}::plp::PLP`;
+
+const renderWallet = (owner: string, dusdc: bigint, plp: bigint): void => {
+  section('Wallet (manager owner)', [
+    ['address', owner],
+    ['DUSDC (raw)', dusdc.toString()],
+    ['DUSDC', formatDecimal(dusdc, 6n)],
+    ['PLP (raw)', plp.toString()],
+    ['PLP', formatDecimal(plp, 6n)],
+  ]);
 };
 
 const renderPredict = (p: PredictState): void => {
