@@ -6,6 +6,7 @@
   "description": "Read/write CLI for the DeepBook Predict protocol on Sui testnet.",
   "scripts": {
     "inspect": "tsx src/scripts/inspect.ts",
+    "markets": "tsx src/scripts/markets.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
