@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Read/write CLI for the DeepBook Predict protocol on Sui testnet.",
   "scripts": {
+    "setup": "tsx src/scripts/setup.ts",
     "inspect": "tsx src/scripts/inspect.ts",
     "markets": "tsx src/scripts/markets.ts",
     "deposit": "tsx src/scripts/deposit.ts",
