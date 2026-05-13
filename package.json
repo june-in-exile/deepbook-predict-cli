@@ -11,6 +11,7 @@
     "withdraw": "tsx src/scripts/withdraw.ts",
     "mint-binary": "tsx src/scripts/mint-binary.ts",
     "preview": "tsx src/scripts/preview.ts",
+    "redeem": "tsx src/scripts/redeem.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

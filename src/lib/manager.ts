@@ -101,6 +101,43 @@ export const getQuoteBalance = async (
   return decodeU64LittleEndian(balance);
 };
 
+export type MarketKeyArgs = Readonly<{
+  oracleId: string;
+  expiryMs: bigint;
+  strike: bigint;
+  isUp: boolean;
+}>;
+
+/**
+ * Devinspect of predict_manager::position(self, key) for a specific binary
+ * market key. Returns 0n when the position doesn't exist (matches the
+ * source's `if contains else 0` branch).
+ */
+export const getPositionQty = async (
+  ctx: Ctx,
+  manager: ManagerState,
+  key: MarketKeyArgs,
+): Promise<bigint> => {
+  const pkg = ctx.config.PACKAGE_ID;
+  const tx = new Transaction();
+  const [mk] = tx.moveCall({
+    target: `${pkg}::market_key::${key.isUp ? 'up' : 'down'}`,
+    arguments: [
+      tx.pure.id(key.oracleId),
+      tx.pure.u64(key.expiryMs),
+      tx.pure.u64(key.strike),
+    ],
+  });
+  if (!mk) throw new Error('market_key constructor returned no result');
+  tx.moveCall({
+    target: `${pkg}::predict_manager::position`,
+    arguments: [tx.object(manager.id), mk],
+  });
+  const [qty] = await devInspectReturnValues(ctx, tx, manager.owner);
+  if (!qty) throw new Error('predict_manager::position returned no value');
+  return decodeU64LittleEndian(qty);
+};
+
 const fetchAllDynamicFields = async (
   ctx: Ctx,
   parentId: string,
