@@ -9,6 +9,7 @@
     "markets": "tsx src/scripts/markets.ts",
     "deposit": "tsx src/scripts/deposit.ts",
     "withdraw": "tsx src/scripts/withdraw.ts",
+    "mint-binary": "tsx src/scripts/mint-binary.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

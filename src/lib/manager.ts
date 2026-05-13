@@ -1,6 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 
 import type { Ctx } from '../client.js';
+import { decodeU64LittleEndian, devInspectReturnValues } from './view.js';
 
 export type Position = Readonly<{
   oracleId: string;
@@ -95,17 +96,9 @@ export const getQuoteBalance = async (
     typeArguments: [coinType],
     arguments: [tx.object(manager.id)],
   });
-  const res = await ctx.client.devInspectTransactionBlock({
-    transactionBlock: tx,
-    sender: manager.owner,
-  });
-  const ret = res.results?.[0]?.returnValues?.[0];
-  if (!ret) {
-    const err = res.error ?? 'no return value';
-    throw new Error(`predict_manager::balance<${coinType}> devInspect failed: ${err}`);
-  }
-  const [bytes] = ret;
-  return decodeU64LittleEndian(bytes);
+  const [balance] = await devInspectReturnValues(ctx, tx, manager.owner);
+  if (!balance) throw new Error(`predict_manager::balance<${coinType}> returned no value`);
+  return decodeU64LittleEndian(balance);
 };
 
 const fetchAllDynamicFields = async (
@@ -175,12 +168,4 @@ const readBigInt = (v: unknown): bigint => {
   if (typeof v === 'number') return BigInt(v);
   if (typeof v === 'string' && v.length > 0) return BigInt(v);
   return 0n;
-};
-
-const decodeU64LittleEndian = (bytes: readonly number[]): bigint => {
-  let n = 0n;
-  for (let i = 0; i < bytes.length; i += 1) {
-    n += BigInt(bytes[i] ?? 0) << BigInt(i * 8);
-  }
-  return n;
 };
