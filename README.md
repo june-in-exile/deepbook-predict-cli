@@ -70,7 +70,8 @@ page before going further.
 
 ## Command reference
 
-All 11 npm scripts. Run any with `--help` for usage details.
+Eleven user-facing scripts grouped below; two dev scripts at the end.
+Lifecycle commands accept `--help` for usage details.
 
 ### Read-only (no signing required, no PRIVATE_KEY needed)
 
@@ -107,7 +108,7 @@ actually submit. Add `--yes` to skip the interactive confirmation.
 | Command | What it does |
 |---|---|
 | `npm run typecheck` | TypeScript strict mode check. |
-| `npm test` | Run unit tests (28 cases as of Day 15). |
+| `npm test` | Run unit tests (28 cases). |
 
 ## How a typical run looks
 
@@ -178,7 +179,7 @@ src/
     deposit.ts / withdraw.ts / mint-binary.ts / redeem.ts /
       lp-supply.ts / lp-withdraw.ts / e2e.ts
 test/                 — vitest unit tests (28 cases)
-notes/                — daily-log notes (day-01.md..day-16.md + week-01-summary.md)
+notes/                — daily-log notes (day-01..day-06, day-08..day-16, + week-01-summary.md; day-07 rolled into the week-1 summary)
 DEEPBOOK_PREDICT_MVP_PLAN.md — the implementation plan this CLI follows
 ```
 
@@ -187,10 +188,11 @@ during development we recorded findings, surprises, and "tomorrow I
 start here" handoffs. Worth reading if you want the **why** behind
 any decision.
 
-### Two scaling conventions
+### Three scaling conventions
 
-The protocol uses two fixed-point scales — confusing the two is the
-most common bug source.
+The protocol uses two fixed-point scales (1e6 and 1e9); quantity reuses
+the 1e6 scale with a special meaning. Confusing these is the most common
+bug source.
 
 | Quantity | Scale | Example |
 |---|---|---|
