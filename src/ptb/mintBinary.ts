@@ -14,8 +14,8 @@ export type MintBinaryArgs = Readonly<{
   isUp: boolean;
   /** Position quantity in 1e6 raw units. Doubles as max payout. */
   quantity: bigint;
-  /** Quote coin type. Defaults to `ctx.config.QUOTE_COIN_TYPE`. */
-  coinType?: string;
+  /** Quote coin type. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 /**
@@ -27,7 +27,7 @@ export type MintBinaryArgs = Readonly<{
  * balance via the internal `manager.withdraw<Quote>(cost, ctx)` call.
  */
 export const buildMintBinaryTx = (ctx: Ctx, args: MintBinaryArgs): Transaction => {
-  const coinType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const coinType = args.coinType;
   if (args.quantity <= 0n) throw new Error(`quantity must be positive; got ${args.quantity}`);
   if (args.strike <= 0n) throw new Error(`strike must be positive; got ${args.strike}`);
 

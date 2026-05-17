@@ -8,7 +8,8 @@ export type RedeemArgs = Readonly<{
   strike: bigint;
   isUp: boolean;
   quantity: bigint;
-  coinType?: string;
+  /** Quote coin type. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 /**
@@ -23,7 +24,7 @@ export type RedeemArgs = Readonly<{
  * Pending or stale oracles abort inside assert_quoteable_oracle.
  */
 export const buildRedeemTx = (ctx: Ctx, args: RedeemArgs): Transaction => {
-  const coinType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const coinType = args.coinType;
   if (args.quantity <= 0n) throw new Error(`quantity must be positive; got ${args.quantity}`);
   if (args.strike <= 0n) throw new Error(`strike must be positive; got ${args.strike}`);
 

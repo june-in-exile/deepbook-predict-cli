@@ -6,11 +6,12 @@ import { splitFromOwned } from '../lib/coins.js';
 export type LpSupplyArgs = Readonly<{
   amount: bigint;
   sender: string;
-  coinType?: string;
+  /** Quote coin type. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 export const buildLpSupplyTx = async (ctx: Ctx, args: LpSupplyArgs): Promise<Transaction> => {
-  const coinType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const coinType = args.coinType;
   if (args.amount <= 0n) throw new Error(`amount must be positive; got ${args.amount}`);
 
   const tx = new Transaction();

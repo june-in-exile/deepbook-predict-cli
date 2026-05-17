@@ -6,11 +6,12 @@ import { splitFromOwned } from '../lib/coins.js';
 export type LpWithdrawArgs = Readonly<{
   shares: bigint;
   sender: string;
-  coinType?: string;
+  /** Quote coin type. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 export const buildLpWithdrawTx = async (ctx: Ctx, args: LpWithdrawArgs): Promise<Transaction> => {
-  const quoteType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const quoteType = args.coinType;
   const plpType = `${ctx.config.PACKAGE_ID}::plp::PLP`;
   if (args.shares <= 0n) throw new Error(`shares must be positive; got ${args.shares}`);
 

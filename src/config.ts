@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 const HEX_OBJECT_ID = /^0x[0-9a-f]{64}$/;
-const COIN_TYPE = /^0x[0-9a-f]{1,64}::[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_][A-Za-z0-9_]*$/;
 const SUI_PRIVKEY = /^suiprivkey1[a-z0-9]{50,}$/;
 
 const objectId = (label: string) =>
@@ -15,9 +14,6 @@ const ConfigSchema = z.object({
   PREDICT_OBJECT_ID: objectId('PREDICT_OBJECT_ID'),
   PREDICT_REGISTRY_ID: objectId('PREDICT_REGISTRY_ID'),
   MANAGER_OBJECT_ID: objectId('MANAGER_OBJECT_ID'),
-  QUOTE_COIN_TYPE: z
-    .string()
-    .regex(COIN_TYPE, 'QUOTE_COIN_TYPE must look like 0x<pkg>::<module>::<Struct>'),
   ORACLE_OBJECT_ID: objectId('ORACLE_OBJECT_ID'),
   PRIVATE_KEY: z
     .string()
@@ -41,7 +37,6 @@ const pickEnv = (): Record<string, string | undefined> => ({
   PREDICT_OBJECT_ID: process.env.PREDICT_OBJECT_ID,
   PREDICT_REGISTRY_ID: process.env.PREDICT_REGISTRY_ID,
   MANAGER_OBJECT_ID: process.env.MANAGER_OBJECT_ID,
-  QUOTE_COIN_TYPE: process.env.QUOTE_COIN_TYPE,
   ORACLE_OBJECT_ID: process.env.ORACLE_OBJECT_ID,
   PRIVATE_KEY: process.env.PRIVATE_KEY || undefined,
 });

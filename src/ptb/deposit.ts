@@ -8,8 +8,8 @@ export type DepositArgs = Readonly<{
   amount: bigint;
   /** Address that will sign the transaction; must own the source coins. */
   sender: string;
-  /** Coin type to deposit. Defaults to `ctx.config.QUOTE_COIN_TYPE`. */
-  coinType?: string;
+  /** Coin type to deposit. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 /**
@@ -17,7 +17,7 @@ export type DepositArgs = Readonly<{
  * `coinType` coins and deposits it into the PredictManager.
  */
 export const buildDepositTx = async (ctx: Ctx, args: DepositArgs): Promise<Transaction> => {
-  const coinType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const coinType = args.coinType;
   if (args.amount <= 0n) throw new Error(`deposit amount must be positive; got ${args.amount}`);
 
   const tx = new Transaction();

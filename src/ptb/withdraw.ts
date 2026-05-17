@@ -7,8 +7,8 @@ export type WithdrawArgs = Readonly<{
   amount: bigint;
   /** Address that will sign and receive the withdrawn coins. */
   recipient: string;
-  /** Coin type to withdraw. Defaults to `ctx.config.QUOTE_COIN_TYPE`. */
-  coinType?: string;
+  /** Coin type to withdraw. Resolved from accepted_quotes via resolveQuote(). */
+  coinType: string;
 }>;
 
 /**
@@ -19,7 +19,7 @@ export type WithdrawArgs = Readonly<{
  *   2. transferObjects [coin]                      -> recipient
  */
 export const buildWithdrawTx = (ctx: Ctx, args: WithdrawArgs): Transaction => {
-  const coinType = args.coinType ?? ctx.config.QUOTE_COIN_TYPE;
+  const coinType = args.coinType;
   if (args.amount <= 0n) {
     throw new Error(`withdraw amount must be positive; got ${args.amount}`);
   }
