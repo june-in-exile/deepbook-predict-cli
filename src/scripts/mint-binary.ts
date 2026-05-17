@@ -4,6 +4,7 @@ import { stdin, stdout } from 'node:process';
 import { createContext, type Ctx } from '../client.js';
 import { getManager, getQuoteBalance, type ManagerState } from '../lib/manager.js';
 import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import {
   buildMintBinaryTx,
@@ -20,7 +21,6 @@ import {
   sign,
 } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
 const PRICE_DECIMALS = 9n;
 
 const main = async (): Promise<void> => {
@@ -30,8 +30,9 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const args = parseArgs(argv);
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
+  const args = parseArgs(argv, quote);
   const sender = await resolveSender(ctx, argv);
 
   const [manager, oracle] = await Promise.all([
@@ -46,15 +47,16 @@ const main = async (): Promise<void> => {
     strike: args.strike,
     isUp: args.isUp,
     quantity: args.quantity,
+    coinType: quote.coinType,
   };
 
-  printSummary(oracle, manager, sender, mintArgs);
+  printSummary(oracle, manager, sender, mintArgs, quote);
 
   const [mintCost, redeemPayout] = await previewTradeAmounts(ctx, sender, mintArgs);
-  printPreview(mintCost, redeemPayout, mintArgs.quantity);
+  printPreview(mintCost, redeemPayout, mintArgs.quantity, quote);
 
-  const balance = await getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE);
-  process.stdout.write(`  manager balance:    ${formatDecimal(balance, QUOTE_DECIMALS)} DUSDC (raw ${balance})\n`);
+  const balance = await getQuoteBalance(ctx, manager, quote.coinType);
+  process.stdout.write(`  manager balance:    ${formatDecimal(balance, quote.decimals)} ${quote.symbol} (raw ${balance})\n`);
   if (balance < mintCost) {
     process.stdout.write(
       `\n  ABORT: insufficient manager balance — need ${mintCost}, have ${balance}.\n` +
@@ -82,7 +84,7 @@ const main = async (): Promise<void> => {
   }
 
   if (!hasFlag(argv, '--yes')) {
-    const ok = await confirm(`Sign and submit this mint for ${formatDecimal(mintCost, QUOTE_DECIMALS)} DUSDC?`);
+    const ok = await confirm(`Sign and submit this mint for ${formatDecimal(mintCost, quote.decimals)} ${quote.symbol}?`);
     if (!ok) {
       process.stdout.write('  aborted by user.\n');
       return;
@@ -119,6 +121,7 @@ const printSummary = (
   manager: ManagerState,
   sender: string,
   args: MintBinaryArgs,
+  quote: Quote,
 ): void => {
   process.stdout.write(`\n=== mint binary ${args.isUp ? 'UP' : 'DOWN'} ===\n`);
   process.stdout.write(`  oracle:             ${oracle.id}\n`);
@@ -127,14 +130,14 @@ const printSummary = (
   process.stdout.write(`  spot:               ${formatDecimal(oracle.spot, PRICE_DECIMALS)}\n`);
   process.stdout.write(`  strike:             ${formatDecimal(args.strike, PRICE_DECIMALS)} (raw ${args.strike})\n`);
   process.stdout.write(`  direction:          ${args.isUp ? 'UP   (settle > strike pays $1)' : 'DOWN (settle <= strike pays $1)'}\n`);
-  process.stdout.write(`  quantity:           ${formatDecimal(args.quantity, QUOTE_DECIMALS)} (raw ${args.quantity})\n`);
+  process.stdout.write(`  quantity:           ${formatDecimal(args.quantity, quote.decimals)} ${quote.symbol} (raw ${args.quantity})\n`);
   process.stdout.write(`  manager:            ${manager.id}\n`);
   process.stdout.write(`  sender:             ${sender}\n`);
 };
 
-const printPreview = (mintCost: bigint, redeemPayout: bigint, quantity: bigint): void => {
-  process.stdout.write(`\n  cost (ask × qty):   ${formatDecimal(mintCost, QUOTE_DECIMALS)} DUSDC (raw ${mintCost})\n`);
-  process.stdout.write(`  bid (instant sell): ${formatDecimal(redeemPayout, QUOTE_DECIMALS)} DUSDC (raw ${redeemPayout})\n`);
+const printPreview = (mintCost: bigint, redeemPayout: bigint, quantity: bigint, quote: Quote): void => {
+  process.stdout.write(`\n  cost (ask × qty):   ${formatDecimal(mintCost, quote.decimals)} ${quote.symbol} (raw ${mintCost})\n`);
+  process.stdout.write(`  bid (instant sell): ${formatDecimal(redeemPayout, quote.decimals)} ${quote.symbol} (raw ${redeemPayout})\n`);
   // ask in 1e9 = (mintCost * 1e9) / quantity, both 1e6-scaled → ask_1e9
   if (quantity > 0n) {
     const askE9 = (mintCost * 1_000_000_000n) / quantity;
@@ -151,7 +154,7 @@ type ParsedArgs = Readonly<{
   quantity: bigint;
 }>;
 
-const parseArgs = (argv: ReadonlyArray<string>): ParsedArgs => {
+const parseArgs = (argv: ReadonlyArray<string>, quote: Quote): ParsedArgs => {
   const oracleId = readFlag(argv, '--oracle');
   const strikeRaw = readFlag(argv, '--strike');
   const qtyRaw = readFlag(argv, '--qty');
@@ -165,7 +168,7 @@ const parseArgs = (argv: ReadonlyArray<string>): ParsedArgs => {
     ...(oracleId ? { oracleId } : {}),
     strike: parseDecimalAmount(strikeRaw, 9),
     isUp: direction === 'up',
-    quantity: parseDecimalAmount(qtyRaw, 6),
+    quantity: parseDecimalAmount(qtyRaw, Number(quote.decimals)),
   };
 };
 

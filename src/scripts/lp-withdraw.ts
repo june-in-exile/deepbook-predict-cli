@@ -3,6 +3,7 @@ import { stdin, stdout } from 'node:process';
 
 import { createContext, type Ctx } from '../client.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { buildLpWithdrawTx } from '../ptb/lpWithdraw.js';
 import {
   formatDecimal,
@@ -14,7 +15,8 @@ import {
   sign,
 } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
+/** PLP coin decimals are fixed by the protocol — always 6. */
+const PLP_DECIMALS = 6n;
 
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
@@ -27,26 +29,27 @@ const main = async (): Promise<void> => {
   const shares = parseDecimalAmount(human, 6);
 
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
   const predict = await getPredict(ctx);
 
   const previewAmount = sharesToAmount(shares, predict);
   const availability = computeAvailability(predict);
 
-  printSummary(human, shares, sender, predict, previewAmount, availability);
+  printSummary(human, shares, sender, predict, previewAmount, availability, quote);
 
   if (previewAmount > availability.available) {
     process.stdout.write(
-      `\n  ABORT (pre-flight): would withdraw ${formatDecimal(previewAmount, QUOTE_DECIMALS)} DUSDC, ` +
-        `but only ${formatDecimal(availability.available, QUOTE_DECIMALS)} is available.\n` +
-        `  The vault must keep ${formatDecimal(predict.vaultTotalMaxPayout, QUOTE_DECIMALS)} in reserve ` +
+      `\n  ABORT (pre-flight): would withdraw ${formatDecimal(previewAmount, quote.decimals)} ${quote.symbol}, ` +
+        `but only ${formatDecimal(availability.available, quote.decimals)} is available.\n` +
+        `  The vault must keep ${formatDecimal(predict.vaultTotalMaxPayout, quote.decimals)} in reserve ` +
         `to cover outstanding max-payout obligations.\n` +
         `  Try a smaller --shares, or wait for positions to settle/redeem.\n`,
     );
     return;
   }
 
-  const tx = await buildLpWithdrawTx(ctx, { shares, sender });
+  const tx = await buildLpWithdrawTx(ctx, { shares, sender, coinType: quote.coinType });
   tx.setSender(sender);
 
   const dry = await ctx.client.devInspectTransactionBlock({
@@ -65,7 +68,7 @@ const main = async (): Promise<void> => {
   }
   if (!hasFlag(argv, '--yes')) {
     const ok = await confirm(
-      `Burn ${human} PLP for ~${formatDecimal(previewAmount, QUOTE_DECIMALS)} DUSDC?`,
+      `Burn ${human} PLP for ~${formatDecimal(previewAmount, quote.decimals)} ${quote.symbol}?`,
     );
     if (!ok) {
       process.stdout.write('  aborted by user.\n');
@@ -112,18 +115,19 @@ const printSummary = (
   predict: PredictState,
   previewAmount: bigint,
   avail: Availability,
+  quote: Quote,
 ): void => {
   process.stdout.write(`\n=== LP withdraw ===\n`);
   process.stdout.write(`  shares to burn:        ${human} PLP (raw ${shares})\n`);
   process.stdout.write(`  sender:                ${sender}\n`);
   process.stdout.write(`  predict:               ${predict.id}\n`);
-  process.stdout.write(`  vault balance:         ${formatDecimal(predict.vaultBalance, QUOTE_DECIMALS)} DUSDC\n`);
-  process.stdout.write(`  vault MTM:             ${formatDecimal(predict.vaultMtm, QUOTE_DECIMALS)} DUSDC\n`);
-  process.stdout.write(`  vault value:           ${formatDecimal(predict.vaultValue, QUOTE_DECIMALS)} DUSDC\n`);
-  process.stdout.write(`  total_max_payout:      ${formatDecimal(predict.vaultTotalMaxPayout, QUOTE_DECIMALS)} DUSDC (must keep in reserve)\n`);
-  process.stdout.write(`  available to withdraw: ${formatDecimal(avail.available, QUOTE_DECIMALS)} DUSDC (= balance - max_payout)\n`);
-  process.stdout.write(`  PLP total supply:      ${formatDecimal(predict.plpTotalSupply, QUOTE_DECIMALS)} PLP\n`);
-  process.stdout.write(`  preview amount out:    ${formatDecimal(previewAmount, QUOTE_DECIMALS)} DUSDC (raw ${previewAmount})\n`);
+  process.stdout.write(`  vault balance:         ${formatDecimal(predict.vaultBalance, quote.decimals)} ${quote.symbol}\n`);
+  process.stdout.write(`  vault MTM:             ${formatDecimal(predict.vaultMtm, quote.decimals)} ${quote.symbol}\n`);
+  process.stdout.write(`  vault value:           ${formatDecimal(predict.vaultValue, quote.decimals)} ${quote.symbol}\n`);
+  process.stdout.write(`  total_max_payout:      ${formatDecimal(predict.vaultTotalMaxPayout, quote.decimals)} ${quote.symbol} (must keep in reserve)\n`);
+  process.stdout.write(`  available to withdraw: ${formatDecimal(avail.available, quote.decimals)} ${quote.symbol} (= balance - max_payout)\n`);
+  process.stdout.write(`  PLP total supply:      ${formatDecimal(predict.plpTotalSupply, PLP_DECIMALS)} PLP\n`);
+  process.stdout.write(`  preview amount out:    ${formatDecimal(previewAmount, quote.decimals)} ${quote.symbol} (raw ${previewAmount})\n`);
   process.stdout.write(`  rate limiter:          ${avail.rateLimiterEnabled ? 'enabled — may further limit withdraws' : 'disabled'}\n`);
 };
 

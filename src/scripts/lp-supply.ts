@@ -3,6 +3,7 @@ import { stdin, stdout } from 'node:process';
 
 import { createContext } from '../client.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { buildLpSupplyTx } from '../ptb/lpSupply.js';
 import {
   formatDecimal,
@@ -14,7 +15,8 @@ import {
   sign,
 } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
+/** PLP coin decimals are fixed by the protocol — always 6. */
+const PLP_DECIMALS = 6n;
 
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
@@ -24,16 +26,18 @@ const main = async (): Promise<void> => {
   }
   const human = readFlag(argv, '--amount');
   if (!human) throw new Error('missing --amount; example: --amount 100');
-  const amount = parseDecimalAmount(human, 6);
 
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
+  const amount = parseDecimalAmount(human, Number(quote.decimals));
+
   const sender = await resolveSender(ctx, argv);
   const predict = await getPredict(ctx);
   const previewShares = computeSharesMinted(amount, predict);
 
-  printSummary(human, amount, sender, predict, previewShares);
+  printSummary(human, amount, sender, predict, previewShares, quote);
 
-  const tx = await buildLpSupplyTx(ctx, { amount, sender });
+  const tx = await buildLpSupplyTx(ctx, { amount, sender, coinType: quote.coinType });
   tx.setSender(sender);
 
   const dry = await ctx.client.devInspectTransactionBlock({
@@ -52,7 +56,7 @@ const main = async (): Promise<void> => {
   }
   if (!hasFlag(argv, '--yes')) {
     const ok = await confirm(
-      `Supply ${human} DUSDC for ~${formatDecimal(previewShares, QUOTE_DECIMALS)} PLP?`,
+      `Supply ${human} ${quote.symbol} for ~${formatDecimal(previewShares, PLP_DECIMALS)} PLP?`,
     );
     if (!ok) {
       process.stdout.write('  aborted by user.\n');
@@ -85,23 +89,24 @@ const printSummary = (
   sender: string,
   predict: PredictState,
   shares: bigint,
+  quote: Quote,
 ): void => {
   process.stdout.write(`\n=== LP supply ===\n`);
-  process.stdout.write(`  supply amount:      ${human} DUSDC (raw ${amount})\n`);
+  process.stdout.write(`  supply amount:      ${human} ${quote.symbol} (raw ${amount})\n`);
   process.stdout.write(`  sender:             ${sender}\n`);
   process.stdout.write(`  predict:            ${predict.id}\n`);
-  process.stdout.write(`  vault balance:      ${formatDecimal(predict.vaultBalance, QUOTE_DECIMALS, { groupThousands: true })} DUSDC\n`);
-  process.stdout.write(`  vault MTM:          ${formatDecimal(predict.vaultMtm, QUOTE_DECIMALS, { groupThousands: true })} DUSDC\n`);
-  process.stdout.write(`  vault value:        ${formatDecimal(predict.vaultValue, QUOTE_DECIMALS, { groupThousands: true })} DUSDC (= balance - MTM)\n`);
-  process.stdout.write(`  PLP total supply:   ${formatDecimal(predict.plpTotalSupply, QUOTE_DECIMALS, { groupThousands: true })} PLP\n`);
-  process.stdout.write(`  preview shares:     ${formatDecimal(shares, QUOTE_DECIMALS, { groupThousands: true })} PLP (raw ${shares})\n`);
+  process.stdout.write(`  vault balance:      ${formatDecimal(predict.vaultBalance, quote.decimals, { groupThousands: true })} ${quote.symbol}\n`);
+  process.stdout.write(`  vault MTM:          ${formatDecimal(predict.vaultMtm, quote.decimals, { groupThousands: true })} ${quote.symbol}\n`);
+  process.stdout.write(`  vault value:        ${formatDecimal(predict.vaultValue, quote.decimals, { groupThousands: true })} ${quote.symbol} (= balance - MTM)\n`);
+  process.stdout.write(`  PLP total supply:   ${formatDecimal(predict.plpTotalSupply, PLP_DECIMALS, { groupThousands: true })} PLP\n`);
+  process.stdout.write(`  preview shares:     ${formatDecimal(shares, PLP_DECIMALS, { groupThousands: true })} PLP (raw ${shares})\n`);
   if (predict.plpTotalSupply === 0n) {
     process.stdout.write(`  (first supplier — 1:1 ratio)\n`);
   } else {
     // Display the ratio to 6 decimal places — the trailing digits of a 9-decimal
     // fixed-point are noise relative to the per-LP rounding error.
     const ratioE6 = (predict.plpTotalSupply * 1_000_000n) / predict.vaultValue;
-    process.stdout.write(`  share/value ratio:  ${formatDecimal(ratioE6, 6n)} PLP per 1 DUSDC of vault_value\n`);
+    process.stdout.write(`  share/value ratio:  ${formatDecimal(ratioE6, 6n)} PLP per 1 ${quote.symbol} of vault_value\n`);
   }
 };
 

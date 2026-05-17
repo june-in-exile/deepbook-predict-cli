@@ -1,6 +1,6 @@
 import { createContext, type Ctx } from '../client.js';
-import { getManager, getQuoteBalance, getPositionQty } from '../lib/manager.js';
-import { getPredict } from '../lib/predict.js';
+import { getManager, getPositionQty } from '../lib/manager.js';
+import { resolveQuote } from '../lib/quote.js';
 import { findActiveOracles, listOracles } from '../lib/server.js';
 import { getOracle, Lifecycle } from '../lib/oracle.js';
 import { buildDepositTx } from '../ptb/deposit.js';
@@ -8,9 +8,7 @@ import { buildLpSupplyTx } from '../ptb/lpSupply.js';
 import { buildLpWithdrawTx } from '../ptb/lpWithdraw.js';
 import { buildMintBinaryTx } from '../ptb/mintBinary.js';
 import { buildRedeemTx } from '../ptb/redeem.js';
-import { formatDecimal, hasFlag, resolveSender, sign } from './_cli.js';
-
-const QUOTE_DECIMALS = 6n;
+import { formatDecimal, hasFlag, readFlag, resolveSender, sign } from './_cli.js';
 
 const E2E_PARAMS = Object.freeze({
   depositRaw: 20_000_000n,        // $20
@@ -29,27 +27,28 @@ const main = async (): Promise<void> => {
   }
 
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
   const results: StepResult[] = [];
 
-  process.stdout.write(`\n=== e2e lifecycle ===\n  sender: ${sender}\n\n`);
+  process.stdout.write(`\n=== e2e lifecycle ===\n  sender: ${sender}\n  quote:  ${quote.symbol}\n\n`);
 
   // 1. Preflight — must be ready
-  process.stdout.write(`[1/7] preflight (manager exists, has owner, wallet has DUSDC)…\n`);
+  process.stdout.write(`[1/7] preflight (manager exists, has owner, wallet has ${quote.symbol})…\n`);
   const manager = await getManager(ctx);
   if (manager.owner.toLowerCase() !== sender.toLowerCase()) {
     fail(results, '1. preflight', `manager owner ${manager.owner} != sender ${sender}`);
     return finish(results);
   }
   const walletBalance = BigInt(
-    (await ctx.client.getBalance({ owner: sender, coinType: ctx.config.QUOTE_COIN_TYPE }))
+    (await ctx.client.getBalance({ owner: sender, coinType: quote.coinType }))
       .totalBalance,
   );
   if (walletBalance < E2E_PARAMS.depositRaw) {
     fail(
       results,
       '1. preflight',
-      `wallet has ${formatDecimal(walletBalance, QUOTE_DECIMALS)} DUSDC, need at least ${formatDecimal(E2E_PARAMS.depositRaw, QUOTE_DECIMALS)}`,
+      `wallet has ${formatDecimal(walletBalance, quote.decimals)} ${quote.symbol}, need at least ${formatDecimal(E2E_PARAMS.depositRaw, quote.decimals)}`,
     );
     return finish(results);
   }
@@ -78,7 +77,11 @@ const main = async (): Promise<void> => {
 
   // 3. Deposit
   await runStep(ctx, results, '3. deposit', async () => {
-    const tx = await buildDepositTx(ctx, { amount: E2E_PARAMS.depositRaw, sender });
+    const tx = await buildDepositTx(ctx, {
+      amount: E2E_PARAMS.depositRaw,
+      sender,
+      coinType: quote.coinType,
+    });
     tx.setSender(sender);
     return tx;
   });
@@ -92,6 +95,7 @@ const main = async (): Promise<void> => {
       strike,
       isUp: true,
       quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
     });
     tx.setSender(sender);
     return tx;
@@ -105,6 +109,7 @@ const main = async (): Promise<void> => {
       strike,
       isUp: false,
       quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
     });
     tx.setSender(sender);
     return tx;
@@ -128,6 +133,7 @@ const main = async (): Promise<void> => {
       strike,
       isUp: true,
       quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
     });
     tx.setSender(sender);
     return tx;
@@ -141,6 +147,7 @@ const main = async (): Promise<void> => {
       strike,
       isUp: false,
       quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
     });
     tx.setSender(sender);
     return tx;
@@ -149,7 +156,11 @@ const main = async (): Promise<void> => {
 
   // 7. LP supply + withdraw
   await runStep(ctx, results, '7a. lp-supply', async () => {
-    const tx = await buildLpSupplyTx(ctx, { amount: E2E_PARAMS.lpSupplyRaw, sender });
+    const tx = await buildLpSupplyTx(ctx, {
+      amount: E2E_PARAMS.lpSupplyRaw,
+      sender,
+      coinType: quote.coinType,
+    });
     tx.setSender(sender);
     return tx;
   });
@@ -166,7 +177,7 @@ const main = async (): Promise<void> => {
   );
   const halfPlp = (plpBalance * BigInt(Math.round(E2E_PARAMS.lpWithdrawFraction * 1_000_000))) / 1_000_000n;
   await runStep(ctx, results, '7b. lp-withdraw half', async () => {
-    const tx = await buildLpWithdrawTx(ctx, { shares: halfPlp, sender });
+    const tx = await buildLpWithdrawTx(ctx, { shares: halfPlp, sender, coinType: quote.coinType });
     tx.setSender(sender);
     return tx;
   });

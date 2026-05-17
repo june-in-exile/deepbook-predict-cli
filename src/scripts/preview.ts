@@ -1,10 +1,10 @@
 import { createContext, type Ctx } from '../client.js';
 import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import { buildTradeAmountsPreviewTx } from '../ptb/mintBinary.js';
 import { formatDecimal, hasFlag, parseDecimalAmount, readFlag, resolveSender } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
 const PRICE_DECIMALS = 9n;
 
 const main = async (): Promise<void> => {
@@ -15,6 +15,7 @@ const main = async (): Promise<void> => {
   }
 
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
   const oracleId = readFlag(argv, '--oracle') ?? ctx.config.ORACLE_OBJECT_ID;
   const oracle = await getOracle(ctx, oracleId);
@@ -23,9 +24,9 @@ const main = async (): Promise<void> => {
   }
 
   const strikes = parseStrikes(argv);
-  const qty = parseDecimalAmount(readFlag(argv, '--qty') ?? '1', 6);
+  const qty = parseDecimalAmount(readFlag(argv, '--qty') ?? '1', Number(quote.decimals));
 
-  printHeader(oracle, qty);
+  printHeader(oracle, qty, quote);
 
   process.stdout.write(
     `\nstrike      |   UP ask   UP bid  |  DOWN ask  DOWN bid  |  ask sum   spread (1-sum)\n`,
@@ -90,14 +91,14 @@ const previewSafe = async (
 /** Convert a 1e6-scaled cost back into a 1e9-scaled per-unit price. */
 const perUnit = (costE6: bigint, qtyE6: bigint): bigint => (costE6 * 1_000_000_000n) / qtyE6;
 
-const printHeader = (oracle: OracleState, qty: bigint): void => {
+const printHeader = (oracle: OracleState, qty: bigint, quote: Quote): void => {
   process.stdout.write(`\n=== preview pairs ===\n`);
   process.stdout.write(`  oracle:     ${oracle.id}\n`);
   process.stdout.write(`  underlying: ${oracle.underlyingAsset}\n`);
   process.stdout.write(`  spot:       ${formatDecimal(oracle.spot, PRICE_DECIMALS)}\n`);
   process.stdout.write(`  forward:    ${formatDecimal(oracle.forward, PRICE_DECIMALS)}\n`);
   process.stdout.write(`  expiry:     ${new Date(Number(oracle.expiryMs)).toISOString()}\n`);
-  process.stdout.write(`  qty:        ${formatDecimal(qty, QUOTE_DECIMALS)} (raw ${qty})\n`);
+  process.stdout.write(`  qty:        ${formatDecimal(qty, quote.decimals)} ${quote.symbol} (raw ${qty})\n`);
 };
 
 const parseStrikes = (argv: ReadonlyArray<string>): readonly bigint[] => {

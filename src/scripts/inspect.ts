@@ -1,5 +1,5 @@
 import { createContext } from '../client.js';
-import { formatDecimal } from './_cli.js';
+import { formatDecimal, readFlag } from './_cli.js';
 import {
   getManager,
   getQuoteBalance,
@@ -14,21 +14,24 @@ import {
   type OracleState,
 } from '../lib/oracle.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { findActiveOracles, listOracles } from '../lib/server.js';
 import { resolveOracleId } from './_resolve-oracle.js';
 
 const wantsJson = process.argv.includes('--json');
 
 const main = async (): Promise<void> => {
+  const argv = process.argv.slice(2);
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const predict = await getPredict(ctx);
   const manager = await getManager(ctx);
-  const [quoteBalance, binaryPositions, rangePositions, allOracles, walletDusdc, walletPlp, walletSui] = await Promise.all([
-    getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE),
+  const [quoteBalance, binaryPositions, rangePositions, allOracles, walletQuote, walletPlp, walletSui] = await Promise.all([
+    getQuoteBalance(ctx, manager, quote.coinType),
     listBinaryPositions(ctx, manager),
     listRangePositions(ctx, manager),
     listOracles(ctx),
-    walletCoinBalance(ctx, manager.owner, ctx.config.QUOTE_COIN_TYPE),
+    walletCoinBalance(ctx, manager.owner, quote.coinType),
     walletCoinBalance(ctx, manager.owner, plpCoinType(ctx)),
     walletCoinBalance(ctx, manager.owner, '0x2::sui::SUI'),
   ]);
@@ -47,7 +50,7 @@ const main = async (): Promise<void> => {
       oracle,
       wallet: {
         owner: manager.owner,
-        dusdc: walletDusdc.toString(),
+        quote: { symbol: quote.symbol, coinType: quote.coinType, amount: walletQuote.toString() },
         plp: walletPlp.toString(),
         sui: walletSui.toString(),
       },
@@ -57,9 +60,9 @@ const main = async (): Promise<void> => {
   }
 
   renderPredict(predict);
-  renderManager(manager, quoteBalance, binaryPositions, rangePositions);
+  renderManager(manager, quoteBalance, binaryPositions, rangePositions, quote);
   renderOracle(oracle);
-  renderWallet(manager.owner, walletDusdc, walletPlp, walletSui);
+  renderWallet(manager.owner, walletQuote, walletPlp, walletSui, quote);
 };
 
 const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: string, coinType: string): Promise<bigint> => {
@@ -69,11 +72,11 @@ const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: s
 
 const plpCoinType = (ctx: ReturnType<typeof createContext>): string => `${ctx.config.PACKAGE_ID}::plp::PLP`;
 
-const renderWallet = (owner: string, dusdc: bigint, plp: bigint, sui: bigint): void => {
+const renderWallet = (owner: string, quoteAmt: bigint, plp: bigint, sui: bigint, quote: Quote): void => {
   section('Wallet (manager owner)', [
     ['address', owner],
     ['SUI (gas)', formatDecimal(sui, 9n, { groupThousands: true })],
-    ['DUSDC', formatDecimal(dusdc, 6n, { groupThousands: true })],
+    [quote.symbol, formatDecimal(quoteAmt, quote.decimals, { groupThousands: true })],
     ['PLP', formatDecimal(plp, 6n, { groupThousands: true })],
   ]);
 };
@@ -96,13 +99,14 @@ const renderManager = (
   balance: bigint,
   bin: readonly Position[],
   rng: readonly RangePosition[],
+  quote: Quote,
 ): void => {
   section('PredictManager', [
     ['id', m.id],
     ['owner', m.owner],
     ['balance_manager_id', m.balanceManagerId],
     ['quote_balance (raw)', balance.toString()],
-    ['quote_balance (USDC)', formatDecimal(balance, 6n, { groupThousands: true })],
+    [`quote_balance (${quote.symbol})`, formatDecimal(balance, quote.decimals, { groupThousands: true })],
     ['binary_positions', String(bin.length)],
     ['range_positions', String(rng.length)],
   ]);

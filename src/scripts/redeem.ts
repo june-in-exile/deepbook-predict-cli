@@ -4,6 +4,7 @@ import { stdin, stdout } from 'node:process';
 import { createContext, type Ctx } from '../client.js';
 import { getManager, getPositionQty, type ManagerState } from '../lib/manager.js';
 import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import { buildRedeemTx, type RedeemArgs } from '../ptb/redeem.js';
 import { buildTradeAmountsPreviewTx } from '../ptb/mintBinary.js';
@@ -17,7 +18,6 @@ import {
   sign,
 } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
 const PRICE_DECIMALS = 9n;
 
 const main = async (): Promise<void> => {
@@ -27,8 +27,9 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const args = parseArgs(argv);
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
+  const args = parseArgs(argv, quote);
   const sender = await resolveSender(ctx, argv);
 
   const [manager, oracle] = await Promise.all([
@@ -43,9 +44,10 @@ const main = async (): Promise<void> => {
     strike: args.strike,
     isUp: args.isUp,
     quantity: args.quantity,
+    coinType: quote.coinType,
   };
 
-  printSummary(oracle, manager, sender, redeemArgs);
+  printSummary(oracle, manager, sender, redeemArgs, quote);
 
   const owned = await getPositionQty(ctx, manager, redeemArgs);
   process.stdout.write(`  position owned:     ${owned} (raw)\n`);
@@ -58,7 +60,7 @@ const main = async (): Promise<void> => {
 
   const previewedPayout = await previewPayout(ctx, sender, redeemArgs);
   process.stdout.write(
-    `  preview payout:     ${formatDecimal(previewedPayout, QUOTE_DECIMALS)} DUSDC (raw ${previewedPayout})\n`,
+    `  preview payout:     ${formatDecimal(previewedPayout, quote.decimals)} ${quote.symbol} (raw ${previewedPayout})\n`,
   );
   if (oracle.lifecycle === Lifecycle.Settled) {
     process.stdout.write(`  (oracle Settled — payout fixed at settlement-price bid)\n`);
@@ -85,7 +87,7 @@ const main = async (): Promise<void> => {
   }
 
   if (!hasFlag(argv, '--yes')) {
-    const ok = await confirm(`Sign and submit redeem for ~${formatDecimal(previewedPayout, QUOTE_DECIMALS)} DUSDC?`);
+    const ok = await confirm(`Sign and submit redeem for ~${formatDecimal(previewedPayout, quote.decimals)} ${quote.symbol}?`);
     if (!ok) {
       process.stdout.write('  aborted by user.\n');
       return;
@@ -121,6 +123,7 @@ const printSummary = (
   manager: ManagerState,
   sender: string,
   args: RedeemArgs,
+  quote: Quote,
 ): void => {
   process.stdout.write(`\n=== redeem binary ${args.isUp ? 'UP' : 'DOWN'} ===\n`);
   process.stdout.write(`  oracle:             ${oracle.id}\n`);
@@ -134,7 +137,7 @@ const printSummary = (
   }
   process.stdout.write(`  strike:             ${formatDecimal(args.strike, PRICE_DECIMALS)}\n`);
   process.stdout.write(`  direction:          ${args.isUp ? 'UP' : 'DOWN'}\n`);
-  process.stdout.write(`  redeem quantity:    ${formatDecimal(args.quantity, QUOTE_DECIMALS)} (raw ${args.quantity})\n`);
+  process.stdout.write(`  redeem quantity:    ${formatDecimal(args.quantity, quote.decimals)} ${quote.symbol} (raw ${args.quantity})\n`);
   process.stdout.write(`  manager:            ${manager.id}\n`);
   process.stdout.write(`  sender:             ${sender}\n`);
 };
@@ -146,7 +149,7 @@ type ParsedArgs = Readonly<{
   quantity: bigint;
 }>;
 
-const parseArgs = (argv: ReadonlyArray<string>): ParsedArgs => {
+const parseArgs = (argv: ReadonlyArray<string>, quote: Quote): ParsedArgs => {
   const oracleId = readFlag(argv, '--oracle');
   const strikeRaw = readFlag(argv, '--strike');
   const qtyRaw = readFlag(argv, '--qty');
@@ -160,7 +163,7 @@ const parseArgs = (argv: ReadonlyArray<string>): ParsedArgs => {
     ...(oracleId ? { oracleId } : {}),
     strike: parseDecimalAmount(strikeRaw, 9),
     isUp: direction === 'up',
-    quantity: parseDecimalAmount(qtyRaw, 6),
+    quantity: parseDecimalAmount(qtyRaw, Number(quote.decimals)),
   };
 };
 

@@ -2,15 +2,16 @@ import { Transaction } from '@mysten/sui/transactions';
 
 import { createContext, type Ctx } from '../client.js';
 import { getManager, getQuoteBalance } from '../lib/manager.js';
+import { resolveQuote, type Quote } from '../lib/quote.js';
 import {
   formatDecimal,
   hasFlag,
   printOutcome,
+  readFlag,
   resolveSender,
   sign,
 } from './_cli.js';
 
-const QUOTE_DECIMALS = 6n;
 const LOW_BALANCE_THRESHOLD_RAW = 10_000_000n; // $10
 
 type Status = Readonly<{
@@ -29,14 +30,15 @@ const main = async (): Promise<void> => {
   }
 
   const ctx = createContext();
+  const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
 
   process.stdout.write(`\n=== setup ===\n`);
   process.stdout.write(`  sender:  ${sender}\n`);
   process.stdout.write(`  network: ${ctx.config.RPC_URL}\n\n`);
 
-  const status = await checkStatus(ctx, sender);
-  printStatus(ctx, status);
+  const status = await checkStatus(ctx, sender, quote);
+  printStatus(ctx, status, quote);
 
   if (!status.managerExists) {
     if (!hasFlag(argv, '--create-manager')) {
@@ -45,7 +47,7 @@ const main = async (): Promise<void> => {
           `  Rerun with --create-manager to call predict::create_manager,\n` +
           `  then put the new id in .env as MANAGER_OBJECT_ID.\n`,
       );
-      printNextSteps(status);
+      printNextSteps(status, quote);
       return;
     }
     await createManager(ctx);
@@ -60,10 +62,10 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  printNextSteps(status);
+  printNextSteps(status, quote);
 };
 
-const checkStatus = async (ctx: Ctx, sender: string): Promise<Status> => {
+const checkStatus = async (ctx: Ctx, sender: string, quote: Quote): Promise<Status> => {
   // Manager existence + ownership.
   let managerExists = false;
   let managerOwnedBySender = false;
@@ -75,16 +77,16 @@ const checkStatus = async (ctx: Ctx, sender: string): Promise<Status> => {
     managerId = m.id;
     managerOwnedBySender = m.owner.toLowerCase() === sender.toLowerCase();
     if (managerOwnedBySender) {
-      managerDusdcRaw = await getQuoteBalance(ctx, m, ctx.config.QUOTE_COIN_TYPE);
+      managerDusdcRaw = await getQuoteBalance(ctx, m, quote.coinType);
     }
   } catch {
     managerExists = false;
   }
 
-  // Wallet DUSDC.
+  // Wallet quote balance.
   const walletRes = await ctx.client.getBalance({
     owner: sender,
-    coinType: ctx.config.QUOTE_COIN_TYPE,
+    coinType: quote.coinType,
   });
   const walletDusdcRaw = BigInt(walletRes.totalBalance);
 
@@ -112,23 +114,23 @@ const createManager = async (ctx: Ctx): Promise<void> => {
   );
 };
 
-const printStatus = (ctx: Ctx, s: Status): void => {
+const printStatus = (ctx: Ctx, s: Status, quote: Quote): void => {
   process.stdout.write(`  configured manager: ${ctx.config.MANAGER_OBJECT_ID}\n`);
   process.stdout.write(`  manager exists:     ${ok(s.managerExists)}\n`);
   if (s.managerExists) {
     process.stdout.write(`  owner matches:      ${ok(s.managerOwnedBySender)}\n`);
   }
-  process.stdout.write(`  wallet DUSDC:       ${formatDecimal(s.walletDusdcRaw, QUOTE_DECIMALS)} (raw ${s.walletDusdcRaw})\n`);
+  process.stdout.write(`  wallet ${quote.symbol}:       ${formatDecimal(s.walletDusdcRaw, quote.decimals)} (raw ${s.walletDusdcRaw})\n`);
   if (s.managerExists && s.managerOwnedBySender) {
-    process.stdout.write(`  manager DUSDC:      ${formatDecimal(s.managerDusdcRaw, QUOTE_DECIMALS)} (raw ${s.managerDusdcRaw})\n`);
+    process.stdout.write(`  manager ${quote.symbol}:      ${formatDecimal(s.managerDusdcRaw, quote.decimals)} (raw ${s.managerDusdcRaw})\n`);
   }
 };
 
-const printNextSteps = (s: Status): void => {
+const printNextSteps = (s: Status, quote: Quote): void => {
   process.stdout.write(`\n  --- readiness ---\n`);
   const checks: Array<readonly [boolean, string]> = [
     [s.managerExists && s.managerOwnedBySender, 'PredictManager ready'],
-    [s.walletDusdcRaw > 0n, 'Wallet holds DUSDC'],
+    [s.walletDusdcRaw > 0n, `Wallet holds ${quote.symbol}`],
     [s.managerDusdcRaw >= LOW_BALANCE_THRESHOLD_RAW, 'Manager funded above $10'],
   ];
   for (const [pass, label] of checks) {
@@ -137,7 +139,7 @@ const printNextSteps = (s: Status): void => {
 
   if (!s.walletDusdcRaw) {
     process.stdout.write(
-      `\n  Need DUSDC: testnet has no faucet for ${'DUSDC'.padEnd(0)}.\n` +
+      `\n  Need ${quote.symbol}: testnet has no faucet for ${quote.symbol}.\n` +
         `  Only the Mysten team can mint it. Options:\n` +
         `   - ask in the official DeepBook / Mysten Discord\n` +
         `   - request from the dusdc::dusdc deployer (see notes/day-02.md §3)\n` +
@@ -147,7 +149,7 @@ const printNextSteps = (s: Status): void => {
   }
   if (s.managerDusdcRaw < LOW_BALANCE_THRESHOLD_RAW) {
     process.stdout.write(
-      `\n  Next: deposit some DUSDC so trading can begin:\n` +
+      `\n  Next: deposit some ${quote.symbol} so trading can begin:\n` +
         `       npm run deposit -- --amount 100 --execute\n`,
     );
     return;
