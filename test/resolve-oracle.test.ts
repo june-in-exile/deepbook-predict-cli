@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveOracleId } from '../src/scripts/_resolve-oracle.js';
+import { resolveOracleId } from '../src/lib/oracle-pick.js';
 import type { OracleEntry } from '../src/lib/server.js';
 
 const ENV_ID = '0x990e6e4ac4439590e20d818fb5daa8d3e61c4e64b0827f14e8f1d0a263d8e5ca';

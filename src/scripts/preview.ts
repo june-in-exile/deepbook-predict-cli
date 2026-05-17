@@ -1,5 +1,6 @@
 import { createContext, type Ctx } from '../client.js';
-import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { Lifecycle, type OracleState } from '../lib/oracle.js';
+import { resolveOracle } from '../lib/oracle-pick.js';
 import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import { buildTradeAmountsPreviewTx } from '../ptb/mintBinary.js';
@@ -17,8 +18,7 @@ const main = async (): Promise<void> => {
   const ctx = createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
-  const oracleId = readFlag(argv, '--oracle') ?? ctx.config.ORACLE_OBJECT_ID;
-  const oracle = await getOracle(ctx, oracleId);
+  const oracle = await resolveOracle(ctx, readFlag(argv, '--oracle'));
   if (oracle.lifecycle !== Lifecycle.Active) {
     throw new Error(`oracle ${oracle.id} is ${oracle.lifecycle}; preview requires Active.`);
   }
@@ -122,7 +122,8 @@ const printHelp = (): void => {
 
 Defaults:
   --qty 1
-  --oracle ORACLE_OBJECT_ID from .env
+  --oracle auto-picked from indexer's active oracle (warns if .env is stale).
+           Falls back to ORACLE_OBJECT_ID from .env when indexer is unreachable.
 
 Examples:
   npm run preview -- --strikes 79000,80000,80500,81000,82000

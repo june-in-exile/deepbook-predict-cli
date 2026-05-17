@@ -10,13 +10,11 @@ import {
   type RangePosition,
 } from '../lib/manager.js';
 import {
-  getOracle,
   type OracleState,
 } from '../lib/oracle.js';
+import { resolveOracle } from '../lib/oracle-pick.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
 import { resolveQuote, type Quote } from '../lib/quote.js';
-import { findActiveOracles, listOracles } from '../lib/server.js';
-import { resolveOracleId } from './_resolve-oracle.js';
 
 const wantsJson = process.argv.includes('--json');
 
@@ -26,22 +24,15 @@ const main = async (): Promise<void> => {
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const predict = await getPredict(ctx);
   const manager = await getManager(ctx);
-  const [quoteBalance, binaryPositions, rangePositions, allOracles, walletQuote, walletPlp, walletSui] = await Promise.all([
+  const [quoteBalance, binaryPositions, rangePositions, oracle, walletQuote, walletPlp, walletSui] = await Promise.all([
     getQuoteBalance(ctx, manager, quote.coinType),
     listBinaryPositions(ctx, manager),
     listRangePositions(ctx, manager),
-    listOracles(ctx),
+    resolveOracle(ctx),
     walletCoinBalance(ctx, manager.owner, quote.coinType),
     walletCoinBalance(ctx, manager.owner, plpCoinType(ctx)),
     walletCoinBalance(ctx, manager.owner, '0x2::sui::SUI'),
   ]);
-
-  const { oracleId, warnings } = resolveOracleId({
-    envOracleId: ctx.config.ORACLE_OBJECT_ID,
-    activeOracles: findActiveOracles(allOracles),
-  });
-  for (const w of warnings) process.stderr.write(`${w}\n`);
-  const oracle = await getOracle(ctx, oracleId);
 
   if (wantsJson) {
     const payload = {

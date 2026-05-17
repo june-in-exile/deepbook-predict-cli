@@ -1,4 +1,6 @@
-import type { OracleEntry } from '../lib/server.js';
+import type { Ctx } from '../client.js';
+import { getOracle, type OracleState } from './oracle.js';
+import { findActiveOracles, listOracles, type OracleEntry } from './server.js';
 
 export interface ResolveOracleInput {
   readonly envOracleId: string;
@@ -12,8 +14,8 @@ export interface ResolveOracleResult {
 
 /**
  * Pure decision: given the env-configured oracle ID and the indexer's current
- * active set, choose which oracle ID `inspect` should display, plus any
- * user-visible warnings the caller should emit to stderr.
+ * active set, choose which oracle ID to use, plus any user-visible warnings
+ * the caller should emit to stderr.
  *
  * Behavior (the spec the tests lock in):
  *   - Empty active set      → use env ID + warn "no active oracle…".
@@ -42,4 +44,34 @@ export const resolveOracleId = ({
     oracleId: pick.oracle_id,
     warnings: [`💡 indexer shows newer active oracle ${pick.oracle_id} — consider updating ORACLE_OBJECT_ID in .env`],
   };
+};
+
+/**
+ * IO wrapper used by every script that needs an oracle. Explicit `oracleFlag`
+ * wins (no indexer hit, no warnings). Otherwise consult the indexer's active
+ * set; emit warnings to stderr; fall back to env id with a clear warning if
+ * the indexer is unreachable.
+ */
+export const resolveOracle = async (
+  ctx: Ctx,
+  oracleFlag?: string,
+): Promise<OracleState> => {
+  if (oracleFlag) return getOracle(ctx, oracleFlag);
+
+  const envId = ctx.config.ORACLE_OBJECT_ID;
+  let oracleId: string;
+  try {
+    const allOracles = await listOracles(ctx);
+    const resolved = resolveOracleId({
+      envOracleId: envId,
+      activeOracles: findActiveOracles(allOracles),
+    });
+    for (const w of resolved.warnings) process.stderr.write(`${w}\n`);
+    oracleId = resolved.oracleId;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`⚠ indexer unreachable (${msg}); falling back to ORACLE_OBJECT_ID from .env\n`);
+    oracleId = envId;
+  }
+  return getOracle(ctx, oracleId);
 };

@@ -61,7 +61,7 @@ set at runtime.
 | `PREDICT_OBJECT_ID` | Shared Predict object — every PTB takes this |
 | `PREDICT_REGISTRY_ID` | Shared registry — informational only |
 | `MANAGER_OBJECT_ID` | Your per-account PredictManager (create via `setup --create-manager`) |
-| `ORACLE_OBJECT_ID` | Default oracle for the mint/redeem/preview scripts |
+| `ORACLE_OBJECT_ID` | Fallback oracle for scripts when the indexer is unreachable or has no active oracle. Inspect / preview / mint-binary normally auto-pick the active oracle from the indexer; redeem always honors this value (or `--oracle`). |
 | `PRIVATE_KEY` | Your `suiprivkey1…` (empty until you need to sign) |
 
 The current `.env.example` is pre-filled with the live testnet
@@ -262,16 +262,23 @@ trade" automatically.
 
 ### "Oracle is Settled" when minting
 
-Oracles on testnet are short-lived (typically 15-minute expiries). If
-the `ORACLE_OBJECT_ID` in your `.env` is hours old, it has expired:
+Oracles on testnet are short-lived (typically 15-minute expiries).
+`inspect`, `preview`, and `mint-binary` consult the indexer for the
+current active oracle automatically — if your `.env` `ORACLE_OBJECT_ID`
+is stale, they switch to the live one and print a hint:
 
 ```
-oracle 0x… is Settled; mint requires Active.
+💡 indexer shows newer active oracle 0x… — consider updating ORACLE_OBJECT_ID in .env
 ```
 
-Run `npm run markets` to list current active oracles. Copy a longer-
-expiry one to `.env` as `ORACLE_OBJECT_ID`. (`mint-binary` and `redeem`
-also accept `--oracle <id>` to override per-call.)
+If the indexer is unreachable, those scripts fall back to
+`ORACLE_OBJECT_ID` and print `⚠ indexer unreachable …`; run
+`npm run markets` to look up a fresh id and either pass `--oracle <id>`
+or update `.env`.
+
+`redeem` intentionally does **not** auto-resolve — its job is to settle
+positions on a specific (often Settled) oracle, so it always honors
+`--oracle <id>` or falls back to `ORACLE_OBJECT_ID` from `.env`.
 
 ### "MoveAbort … assert_mintable_ask"
 

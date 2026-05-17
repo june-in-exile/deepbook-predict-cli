@@ -3,7 +3,8 @@ import { stdin, stdout } from 'node:process';
 
 import { createContext, type Ctx } from '../client.js';
 import { getManager, getQuoteBalance, type ManagerState } from '../lib/manager.js';
-import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { Lifecycle, type OracleState } from '../lib/oracle.js';
+import { resolveOracle } from '../lib/oracle-pick.js';
 import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import {
@@ -37,7 +38,7 @@ const main = async (): Promise<void> => {
 
   const [manager, oracle] = await Promise.all([
     getManager(ctx),
-    getOracle(ctx, args.oracleId ?? ctx.config.ORACLE_OBJECT_ID),
+    resolveOracle(ctx, args.oracleId),
   ]);
   assertOracleTradable(oracle);
 
@@ -188,7 +189,8 @@ const printHelp = (): void => {
   npm run mint-binary -- --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
-  --oracle defaults to ORACLE_OBJECT_ID from .env
+  --oracle auto-picked from indexer's active oracle (warns if .env is stale).
+           Falls back to ORACLE_OBJECT_ID from .env when indexer is unreachable.
 
 Scaling:
   --strike  human dollars (e.g. 80000 = \$80,000), scaled to 1e9 raw
