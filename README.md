@@ -49,7 +49,9 @@ expects.
 
 All on-chain identifiers live in `.env`. `.env.example` is committed;
 copy it and edit. Validations run on every script start (zod schema in
-`src/config.ts`), so a typo surfaces immediately.
+`src/config.ts`), so a typo surfaces immediately. The quote asset is no
+longer stored — it's discovered from the protocol's `accepted_quotes`
+set at runtime.
 
 | Variable | Description |
 |---|---|
@@ -59,7 +61,6 @@ copy it and edit. Validations run on every script start (zod schema in
 | `PREDICT_OBJECT_ID` | Shared Predict object — every PTB takes this |
 | `PREDICT_REGISTRY_ID` | Shared registry — informational only |
 | `MANAGER_OBJECT_ID` | Your per-account PredictManager (create via `setup --create-manager`) |
-| `QUOTE_COIN_TYPE` | DUSDC fully-qualified type |
 | `ORACLE_OBJECT_ID` | Default oracle for the mint/redeem/preview scripts |
 | `PRIVATE_KEY` | Your `suiprivkey1…` (empty until you need to sign) |
 
@@ -102,6 +103,24 @@ actually submit. Add `--yes` to skip the interactive confirmation.
 | `npm run lp-supply -- --amount 100` | Supply DUSDC to the vault for PLP shares. |
 | `npm run lp-withdraw -- --shares 50` | Burn PLP for DUSDC. |
 | `npm run e2e` | Full lifecycle orchestrator: deposit → mint UP+DOWN → redeem → lp-supply → lp-withdraw. |
+
+### Quote selection
+
+All commands resolve the quote asset from the protocol's
+`Predict.treasury_config.accepted_quotes` set on startup. Currently this
+set contains only DUSDC; the CLI auto-selects it, so no flag is needed.
+
+When the protocol adds a second quote asset (e.g. USDC), the CLI will
+refuse to run without an explicit `--quote`:
+
+```bash
+npm run mint-binary -- --quote DUSDC --strike 80500 --qty 5 --direction up
+npm run deposit     -- --quote 0xe95040…::dusdc::DUSDC --amount 100   # full type also works
+```
+
+The flag accepts either a symbol (case-insensitive match against
+`CoinMetadata.symbol`) or a full coin type (the value containing `::` is
+treated as a full type).
 
 ### Development
 
@@ -292,6 +311,13 @@ banner to stdout. Use `--silent`:
 ```bash
 npm run --silent inspect -- --json | jq
 ```
+
+### "--quote required to disambiguate"
+
+`Predict.treasury_config.accepted_quotes` contains more than one quote
+asset. Re-run with `--quote <symbol>` (e.g. `--quote DUSDC`) or pass the
+full coin type. `npm run inspect` lists every accepted quote under
+`TreasuryConfig — accepted quotes`.
 
 ## What this CLI does NOT do
 
