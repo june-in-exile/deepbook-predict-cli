@@ -189,8 +189,9 @@ const printHelp = (): void => {
   npm run mint-binary -- --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
-  --oracle auto-picked from indexer's active oracle (warns if .env is stale).
-           Falls back to ORACLE_OBJECT_ID from .env when indexer is unreachable.
+  --oracle auto-picked from indexer's active oracle (next to settle).
+           Fails fast if the indexer is unreachable or has no active oracle —
+           pass --oracle <id> to override.
 
 Scaling:
   --strike  human dollars (e.g. 80000 = \$80,000), scaled to 1e9 raw

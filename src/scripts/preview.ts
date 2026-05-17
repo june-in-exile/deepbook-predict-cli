@@ -122,8 +122,9 @@ const printHelp = (): void => {
 
 Defaults:
   --qty 1
-  --oracle auto-picked from indexer's active oracle (warns if .env is stale).
-           Falls back to ORACLE_OBJECT_ID from .env when indexer is unreachable.
+  --oracle auto-picked from indexer's active oracle (next to settle).
+           Fails fast if the indexer is unreachable or has no active oracle —
+           pass --oracle <id> to override.
 
 Examples:
   npm run preview -- --strikes 79000,80000,80500,81000,82000

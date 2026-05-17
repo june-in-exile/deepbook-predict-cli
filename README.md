@@ -61,8 +61,11 @@ set at runtime.
 | `PREDICT_OBJECT_ID` | Shared Predict object — every PTB takes this |
 | `PREDICT_REGISTRY_ID` | Shared registry — informational only |
 | `MANAGER_OBJECT_ID` | Your per-account PredictManager (create via `setup --create-manager`) |
-| `ORACLE_OBJECT_ID` | Fallback oracle for scripts when the indexer is unreachable or has no active oracle. Inspect / preview / mint-binary normally auto-pick the active oracle from the indexer; redeem always honors this value (or `--oracle`). |
 | `PRIVATE_KEY` | Your `suiprivkey1…` (empty until you need to sign) |
+
+Oracle ids are resolved at runtime — `inspect`, `preview`, and `mint-binary`
+auto-pick the active oracle from the indexer; `redeem` derives it from your
+manager's positions. Pass `--oracle <id>` to any of them to override.
 
 The current `.env.example` is pre-filled with the live testnet
 identifiers as of `predict-testnet-4-16`. Verify each one against
@@ -263,22 +266,24 @@ trade" automatically.
 ### "Oracle is Settled" when minting
 
 Oracles on testnet are short-lived (typically 15-minute expiries).
-`inspect`, `preview`, and `mint-binary` consult the indexer for the
-current active oracle automatically — if your `.env` `ORACLE_OBJECT_ID`
-is stale, they switch to the live one and print a hint:
+There is no `ORACLE_OBJECT_ID` in `.env` to keep up to date — `inspect`,
+`preview`, and `mint-binary` always consult the indexer for the current
+active oracle. `redeem` derives the oracle from your matching manager
+position, so it works against Settled oracles automatically.
 
+If the indexer is unreachable or reports no active oracle, the call
+fails with:
+
+```text
+No active oracle in indexer. Pass --oracle <id> explicitly, or run `npm run markets` to inspect current oracle state.
 ```
-💡 indexer shows newer active oracle 0x… — consider updating ORACLE_OBJECT_ID in .env
-```
 
-If the indexer is unreachable, those scripts fall back to
-`ORACLE_OBJECT_ID` and print `⚠ indexer unreachable …`; run
-`npm run markets` to look up a fresh id and either pass `--oracle <id>`
-or update `.env`.
+Run `npm run markets` to inspect oracle state, then pass `--oracle <id>`
+to override per-call when needed.
 
-`redeem` intentionally does **not** auto-resolve — its job is to settle
-positions on a specific (often Settled) oracle, so it always honors
-`--oracle <id>` or falls back to `ORACLE_OBJECT_ID` from `.env`.
+For `redeem`: if you have multiple positions at the same strike/direction
+across different expiries, the auto-derive emits a disambiguation hint
+listing each `(expiry, oracle id, qty)` — pass `--oracle <id>` to pick.
 
 ### "MoveAbort … assert_mintable_ask"
 

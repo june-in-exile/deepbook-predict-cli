@@ -2,8 +2,9 @@ import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 
 import { createContext, type Ctx } from '../client.js';
-import { getManager, getPositionQty, type ManagerState } from '../lib/manager.js';
+import { getManager, getPositionQty, listBinaryPositions, type ManagerState } from '../lib/manager.js';
 import { getOracle, Lifecycle, type OracleState } from '../lib/oracle.js';
+import { pickPositionOracle } from '../lib/oracle-pick.js';
 import { resolveQuote, type Quote } from '../lib/quote.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from '../lib/view.js';
 import { buildRedeemTx, type RedeemArgs } from '../ptb/redeem.js';
@@ -32,10 +33,8 @@ const main = async (): Promise<void> => {
   const args = parseArgs(argv, quote);
   const sender = await resolveSender(ctx, argv);
 
-  const [manager, oracle] = await Promise.all([
-    getManager(ctx),
-    getOracle(ctx, args.oracleId ?? ctx.config.ORACLE_OBJECT_ID),
-  ]);
+  const manager = await getManager(ctx);
+  const oracle = await resolveRedeemOracle(ctx, manager, args);
   assertQuoteable(oracle);
 
   const redeemArgs: RedeemArgs = {
@@ -96,6 +95,23 @@ const main = async (): Promise<void> => {
 
   const outcome = await sign(ctx, tx);
   printOutcome(outcome);
+};
+
+/**
+ * Explicit `--oracle <id>` wins. Otherwise derive the oracle from the manager's
+ * binary positions by matching (strike, direction). The position records its
+ * source oracle id directly, so this avoids any indexer round-trip and works
+ * even when the underlying oracle is already Settled.
+ */
+const resolveRedeemOracle = async (
+  ctx: Ctx,
+  manager: ManagerState,
+  args: ParsedArgs,
+): Promise<OracleState> => {
+  if (args.oracleId) return getOracle(ctx, args.oracleId);
+  const positions = await listBinaryPositions(ctx, manager);
+  const match = pickPositionOracle(positions, args.strike, args.isUp);
+  return getOracle(ctx, match.oracleId);
 };
 
 const assertQuoteable = (oracle: OracleState): void => {
@@ -183,7 +199,9 @@ const printHelp = (): void => {
   npm run redeem -- --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
-  --oracle defaults to ORACLE_OBJECT_ID from .env
+  --oracle auto-derived from your manager's matching position (strike, direction).
+           Pass --oracle <id> explicitly when multiple positions share the same
+           strike/direction at different expiries, or to override the match.
 
 Pre-flight gates:
   1. Oracle is Active or Settled (NOT Pending or Inactive)
