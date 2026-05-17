@@ -14,6 +14,8 @@ import {
   type OracleState,
 } from '../lib/oracle.js';
 import { getPredict, type PredictState } from '../lib/predict.js';
+import { findActiveOracles, listOracles } from '../lib/server.js';
+import { resolveOracleId } from './_resolve-oracle.js';
 
 const wantsJson = process.argv.includes('--json');
 
@@ -21,15 +23,22 @@ const main = async (): Promise<void> => {
   const ctx = createContext();
   const predict = await getPredict(ctx);
   const manager = await getManager(ctx);
-  const [quoteBalance, binaryPositions, rangePositions, oracle, walletDusdc, walletPlp, walletSui] = await Promise.all([
+  const [quoteBalance, binaryPositions, rangePositions, allOracles, walletDusdc, walletPlp, walletSui] = await Promise.all([
     getQuoteBalance(ctx, manager, ctx.config.QUOTE_COIN_TYPE),
     listBinaryPositions(ctx, manager),
     listRangePositions(ctx, manager),
-    getOracle(ctx, ctx.config.ORACLE_OBJECT_ID),
+    listOracles(ctx),
     walletCoinBalance(ctx, manager.owner, ctx.config.QUOTE_COIN_TYPE),
     walletCoinBalance(ctx, manager.owner, plpCoinType(ctx)),
     walletCoinBalance(ctx, manager.owner, '0x2::sui::SUI'),
   ]);
+
+  const { oracleId, warnings } = resolveOracleId({
+    envOracleId: ctx.config.ORACLE_OBJECT_ID,
+    activeOracles: findActiveOracles(allOracles),
+  });
+  for (const w of warnings) process.stderr.write(`${w}\n`);
+  const oracle = await getOracle(ctx, oracleId);
 
   if (wantsJson) {
     const payload = {
