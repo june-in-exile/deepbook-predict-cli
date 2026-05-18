@@ -1,5 +1,5 @@
 import { createContext, type Ctx } from '../client.js';
-import { getManager, getPositionQty } from '../lib/manager.js';
+import { getManager, getPositionQty, getRangePositionQty } from '../lib/manager.js';
 import { resolveQuote } from '../lib/quote.js';
 import { findActiveOracles, listOracles } from '../lib/server.js';
 import { getOracle, Lifecycle } from '../lib/oracle.js';
@@ -7,12 +7,15 @@ import { buildDepositTx } from '../ptb/deposit.js';
 import { buildLpSupplyTx } from '../ptb/lpSupply.js';
 import { buildLpWithdrawTx } from '../ptb/lpWithdraw.js';
 import { buildMintBinaryTx } from '../ptb/mintBinary.js';
+import { buildMintRangeTx } from '../ptb/mintRange.js';
 import { buildRedeemTx } from '../ptb/redeem.js';
+import { buildRedeemRangeTx } from '../ptb/redeemRange.js';
 import { formatDecimal, hasFlag, readFlag, resolveSender, sign } from './_cli.js';
 
 const E2E_PARAMS = Object.freeze({
-  depositRaw: 20_000_000n,        // $20
+  depositRaw: 25_000_000n,        // $25 — funds binary UP + DOWN + range
   mintQtyRaw: 1_000_000n,         // $1 max payout per side
+  rangeWidthE9: 1_000_000_000_000n, // $1,000 range width
   lpSupplyRaw: 5_000_000n,        // $5 of LP
   lpWithdrawFraction: 0.5,        // burn half the new PLP
 });
@@ -69,10 +72,13 @@ const main = async (): Promise<void> => {
     return finish(results);
   }
   const strike = roundStrike(oracle.spot);
+  const halfWidth = E2E_PARAMS.rangeWidthE9 / 2n;
+  const lower = roundStrike(oracle.spot - halfWidth);
+  const higher = roundStrike(oracle.spot + halfWidth);
   results.push({
     name: '2. oracle pick',
     ok: true,
-    note: `${longest.oracle_id.slice(0, 12)}…  spot=${formatDecimal(oracle.spot, 9n)}  strike=${formatDecimal(strike, 9n)}  expiry=${new Date(longest.expiry).toISOString()}`,
+    note: `${longest.oracle_id.slice(0, 12)}…  spot=${formatDecimal(oracle.spot, 9n)}  strike=${formatDecimal(strike, 9n)}  range=(${formatDecimal(lower, 9n)}, ${formatDecimal(higher, 9n)}]  expiry=${new Date(longest.expiry).toISOString()}`,
   });
 
   // 3. Deposit
@@ -116,16 +122,39 @@ const main = async (): Promise<void> => {
   });
   if (lastFailed(results)) return finish(results);
 
-  // 5. Inspect — verify two positions
+  await runStep(ctx, results, '4c. mint range', async () => {
+    const tx = buildMintRangeTx(ctx, {
+      oracleId: oracle.id,
+      expiryMs: oracle.expiryMs,
+      lower,
+      higher,
+      quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
+    });
+    tx.setSender(sender);
+    return tx;
+  });
+  if (lastFailed(results)) return finish(results);
+
+  // 5. Inspect — verify three positions
   const upQty = await getPositionQty(ctx, manager, { oracleId: oracle.id, expiryMs: oracle.expiryMs, strike, isUp: true });
   const downQty = await getPositionQty(ctx, manager, { oracleId: oracle.id, expiryMs: oracle.expiryMs, strike, isUp: false });
-  if (upQty !== E2E_PARAMS.mintQtyRaw || downQty !== E2E_PARAMS.mintQtyRaw) {
-    fail(results, '5. verify positions', `expected UP=DOWN=${E2E_PARAMS.mintQtyRaw}, got UP=${upQty} DOWN=${downQty}`);
+  const rangeQty = await getRangePositionQty(ctx, manager, { oracleId: oracle.id, expiryMs: oracle.expiryMs, lower, higher });
+  if (
+    upQty !== E2E_PARAMS.mintQtyRaw ||
+    downQty !== E2E_PARAMS.mintQtyRaw ||
+    rangeQty !== E2E_PARAMS.mintQtyRaw
+  ) {
+    fail(
+      results,
+      '5. verify positions',
+      `expected UP=DOWN=RANGE=${E2E_PARAMS.mintQtyRaw}, got UP=${upQty} DOWN=${downQty} RANGE=${rangeQty}`,
+    );
     return finish(results);
   }
-  results.push({ name: '5. verify positions', ok: true, note: `UP=${upQty} DOWN=${downQty}` });
+  results.push({ name: '5. verify positions', ok: true, note: `UP=${upQty} DOWN=${downQty} RANGE=${rangeQty}` });
 
-  // 6. Redeem both (early exit at live SVI bid)
+  // 6. Redeem all three (early exit at live SVI bid)
   await runStep(ctx, results, '6a. redeem UP', async () => {
     const tx = buildRedeemTx(ctx, {
       oracleId: oracle.id,
@@ -146,6 +175,20 @@ const main = async (): Promise<void> => {
       expiryMs: oracle.expiryMs,
       strike,
       isUp: false,
+      quantity: E2E_PARAMS.mintQtyRaw,
+      coinType: quote.coinType,
+    });
+    tx.setSender(sender);
+    return tx;
+  });
+  if (lastFailed(results)) return finish(results);
+
+  await runStep(ctx, results, '6c. redeem range', async () => {
+    const tx = buildRedeemRangeTx(ctx, {
+      oracleId: oracle.id,
+      expiryMs: oracle.expiryMs,
+      lower,
+      higher,
       quantity: E2E_PARAMS.mintQtyRaw,
       coinType: quote.coinType,
     });
@@ -237,15 +280,15 @@ const printHelp = (): void => {
   npm run e2e
 
   Orchestrates the full lifecycle:
-    preflight → pick oracle → deposit → mint UP+DOWN → verify positions
-    → redeem both → lp-supply → lp-withdraw half → summary
+    preflight → pick oracle → deposit → mint UP+DOWN+RANGE → verify positions
+    → redeem all three → lp-supply → lp-withdraw half → summary
 
   Reuses the existing PTB builders directly. Each signed step uses
   signAndExecuteTransaction; failures halt the chain.
 
   Requires:
     - PRIVATE_KEY in .env (signing)
-    - DUSDC in wallet (\$20 minimum)
+    - DUSDC in wallet (\$25 minimum)
     - PredictManager created (run 'npm run setup' first)
 `,
   );

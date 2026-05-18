@@ -138,6 +138,43 @@ export const getPositionQty = async (
   return decodeU64LittleEndian(qty);
 };
 
+export type RangeKeyArgs = Readonly<{
+  oracleId: string;
+  expiryMs: bigint;
+  lower: bigint;
+  higher: bigint;
+}>;
+
+/**
+ * Devinspect of predict_manager::range_position(self, key) for a specific
+ * range market key. Returns 0n when the position doesn't exist.
+ */
+export const getRangePositionQty = async (
+  ctx: Ctx,
+  manager: ManagerState,
+  key: RangeKeyArgs,
+): Promise<bigint> => {
+  const pkg = ctx.config.PACKAGE_ID;
+  const tx = new Transaction();
+  const [rk] = tx.moveCall({
+    target: `${pkg}::range_key::new`,
+    arguments: [
+      tx.pure.id(key.oracleId),
+      tx.pure.u64(key.expiryMs),
+      tx.pure.u64(key.lower),
+      tx.pure.u64(key.higher),
+    ],
+  });
+  if (!rk) throw new Error('range_key constructor returned no result');
+  tx.moveCall({
+    target: `${pkg}::predict_manager::range_position`,
+    arguments: [tx.object(manager.id), rk],
+  });
+  const [qty] = await devInspectReturnValues(ctx, tx, manager.owner);
+  if (!qty) throw new Error('predict_manager::range_position returned no value');
+  return decodeU64LittleEndian(qty);
+};
+
 const fetchAllDynamicFields = async (
   ctx: Ctx,
   parentId: string,

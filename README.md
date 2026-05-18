@@ -74,7 +74,7 @@ page before going further.
 
 ## Command reference
 
-Eleven user-facing scripts grouped below; two dev scripts at the end.
+Thirteen user-facing scripts grouped below; two dev scripts at the end.
 Lifecycle commands accept `--help` for usage details.
 
 ### Read-only (no signing required, no PRIVATE_KEY needed)
@@ -83,7 +83,7 @@ Lifecycle commands accept `--help` for usage details.
 |---|---|
 | `npm run inspect` | Dumps Predict / Manager / Oracle / Wallet state. Add `--json` for machine output. |
 | `npm run markets` | Lists active oracles via the indexer. Supports `--asset BTC`, `--limit N`, `--all`. |
-| `npm run preview -- --strikes 80000,80500,81000` | Side-by-side UP+DOWN ask/bid table across a strike ladder. |
+| `npm run preview -- --strikes 80000,80500,81000` | Side-by-side UP+DOWN ask/bid table across a strike ladder. Add `--ranges 79500-80500,80500-81500` for a range block. |
 
 ### Setup
 
@@ -102,10 +102,12 @@ actually submit. Add `--yes` to skip the interactive confirmation.
 | `npm run deposit -- --amount 100` | Deposit DUSDC into the manager. |
 | `npm run withdraw -- --amount 50` | Withdraw DUSDC from the manager to your wallet. |
 | `npm run mint-binary -- --strike 80500 --qty 5 --direction up` | Mint a binary position. |
+| `npm run mint-range -- --lower 80000 --higher 81000 --qty 5` | Mint a range position (inside-range payoff). |
 | `npm run redeem -- --strike 80500 --qty 5 --direction up` | Redeem (full or partial). Works for Active *and* Settled oracles. |
+| `npm run redeem-range -- --lower 80000 --higher 81000 --qty 5` | Redeem a range position. Same lifecycle rules as binary redeem. |
 | `npm run lp-supply -- --amount 100` | Supply DUSDC to the vault for PLP shares. |
 | `npm run lp-withdraw -- --shares 50` | Burn PLP for DUSDC. |
-| `npm run e2e` | Full lifecycle orchestrator: deposit → mint UP+DOWN → redeem → lp-supply → lp-withdraw. |
+| `npm run e2e` | Full lifecycle orchestrator: deposit → mint UP+DOWN+RANGE → redeem all three → lp-supply → lp-withdraw. |
 
 ### Quote selection
 
@@ -335,8 +337,6 @@ full coin type. `npm run inspect` lists every accepted quote under
 
 Per the plan's scope:
 
-- No **range positions** (`mint_range`, `redeem_range`). Same protocol
-  pattern as binary; intentionally deferred to v2.
 - No **wallet UI / browser integration**. Local keypair only.
 - No **multi-quote support**. Single quote asset (DUSDC) hardcoded.
 - No **historical position tracking**. The Predict Server's indexer
@@ -352,9 +352,9 @@ From the plan:
 | Item | Status |
 |---|---|
 | Fresh clone + `.env` + `npm install` + `npm run setup` works | ✅ verified |
-| `npm run e2e` runs all six lifecycle commands | ⚠ orchestrator built; execution gated on DUSDC supply |
+| `npm run e2e` runs all lifecycle commands (binary + range) | ⚠ orchestrator built; execution gated on DUSDC supply |
+| Range options (mint-range, redeem-range, preview, e2e integration) | ✅ shipped |
 | README clear enough for a Sui-familiar developer | ← you're reading it |
-| All 18 daily notes captured | 16/18 (current: Day 16); Days 17-18 are the plan's reserved buffer |
 | 3-minute demo recording | Out of scope for a CLI-only session |
 
 ## License

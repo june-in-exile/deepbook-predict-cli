@@ -1,5 +1,5 @@
 import type { Ctx } from '../client.js';
-import type { Position } from './manager.js';
+import type { Position, RangePosition } from './manager.js';
 import { getOracle, type OracleState } from './oracle.js';
 import { findActiveOracles, listOracles, type OracleEntry } from './server.js';
 
@@ -49,6 +49,40 @@ export const pickPositionOracle = (
       .join('\n');
     throw new Error(
       `Multiple positions match strike=${strike} direction=${dir}:\n${lines}\nPass --oracle <id> to disambiguate.`,
+    );
+  }
+  return matches[0]!;
+};
+
+/**
+ * Pure: find the unique manager-side range position matching (lower, higher).
+ *
+ * Each RangePosition records its source oracle id directly, so this also tells
+ * the caller which oracle to load. Throws when zero or multiple matches exist —
+ * callers must disambiguate explicitly (via --oracle) rather than guess.
+ */
+export const pickRangePositionOracle = (
+  positions: readonly RangePosition[],
+  lower: bigint,
+  higher: bigint,
+): RangePosition => {
+  const matches = positions.filter(
+    (p) => p.lowerStrike === lower && p.higherStrike === higher,
+  );
+  if (matches.length === 0) {
+    throw new Error(
+      `No range position at lower=${lower} higher=${higher}. Run \`npm run inspect\` to list your positions.`,
+    );
+  }
+  if (matches.length > 1) {
+    const lines = matches
+      .map(
+        (p) =>
+          `  expiry=${new Date(Number(p.expiryMs)).toISOString()} oracle=${p.oracleId} qty=${p.quantity}`,
+      )
+      .join('\n');
+    throw new Error(
+      `Multiple range positions match lower=${lower} higher=${higher}:\n${lines}\nPass --oracle <id> to disambiguate.`,
     );
   }
   return matches[0]!;
