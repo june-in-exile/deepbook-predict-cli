@@ -3948,7 +3948,7 @@
   .takeaway{
     margin-top:auto;border-left:2px solid var(--acc);
     padding:.95rem 0 .95rem 1.4rem;color:var(--txt-dim);
-    font-size:1.18rem;font-style:italic;font-weight:300;max-width:78ch;
+    font-size:1.18rem;font-style:italic;font-weight:300;
   }
   .takeaway b{color:var(--txt);font-style:normal}
 
@@ -4061,31 +4061,32 @@
   .arch{display:flex;flex-direction:column;gap:1.1rem;flex:1;min-height:0}
   .arch-globals{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.45rem;flex-wrap:wrap}
   .arch-globals-group{
-    display:inline-flex;align-items:center;gap:.55rem;
-    padding:.42rem .7rem .42rem .85rem;
-    border:1px solid var(--line-2);border-radius:16px;
+    display:inline-flex;align-items:center;gap:.75rem;
+    padding:.6rem 1rem .6rem 1.25rem;
+    border:1px solid var(--line-2);border-radius:20px;
     background:linear-gradient(180deg,rgba(45,212,191,.04),rgba(45,212,191,0));
   }
   .arch-globals-label{
-    font-family:var(--mono);font-size:.7rem;font-weight:700;
+    font-family:var(--mono);font-size:.95rem;font-weight:700;
     color:#a3a3a3;letter-spacing:.22em;text-transform:uppercase;
-    padding-right:.75rem;border-right:1px dashed var(--line-2);
+    padding-right:1rem;border-right:1px dashed var(--line-2);
   }
   .arch-pill{
-    font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;
-    padding:.42rem .9rem;border-radius:99px;
+    font-family:var(--mono);font-size:.88rem;letter-spacing:.14em;
+    padding:.55rem 1.15rem;border-radius:99px;
     border:1px dashed var(--line-2);color:var(--txt-faint);
-    text-transform:uppercase;display:inline-flex;align-items:center;gap:.55rem;
+    text-transform:uppercase;display:inline-flex;align-items:center;gap:.65rem;
   }
   .arch-pill b{color:var(--txt);font-weight:600;letter-spacing:.04em;
-    text-transform:none;font-family:var(--disp);font-size:.92rem}
+    text-transform:none;font-family:var(--disp);font-size:1.12rem}
   .arch-globals-note{
     font-family:var(--mono);font-size:.7rem;color:var(--txt-faint);
-    letter-spacing:.12em;margin-left:.3rem;text-transform:uppercase;
+    letter-spacing:.12em;text-transform:uppercase;
   }
   .arch-canvas{
     flex:1;min-height:0;position:relative;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:.85rem;
     margin-top:.5rem;padding:.2rem 0;
   }
   .arch-svg{width:100%;height:100%;max-height:560px;display:block;overflow:visible}
@@ -4099,6 +4100,71 @@
   @keyframes archDrawIn{to{stroke-dashoffset:0}}
   .arch-svg .arch-stage.on .pulse-dot{animation:archPulse 2.6s ease-in-out infinite}
   @keyframes archPulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* extras grid below the arch diagram — left col holds USER FLOW + ORACLE, right col holds PLP */
+  .arch-extras{
+    display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+    gap:.9rem 1.6rem;
+    margin-top:.4rem;
+  }
+  .arch-extras-left{display:flex;flex-direction:column;gap:.85rem;min-width:0}
+
+  /* staged reveal for non-SVG stage elements (USER FLOW / ORACLE / PLP) */
+  .arch-flow[data-stage],
+  .arch-info[data-stage]{
+    opacity:0;visibility:hidden;transform:translateY(8px);
+    transition:opacity .35s ease,visibility 0s .35s,transform .35s ease;
+  }
+  .arch-flow[data-stage].on,
+  .arch-info[data-stage].on{
+    opacity:1;visibility:visible;transform:none;
+    transition:opacity .45s ease,visibility 0s 0s,transform .45s cubic-bezier(.2,.7,.2,1);
+  }
+
+  /* user flow text — left-aligned, enlarged */
+  .arch-flow{
+    display:flex;flex-direction:column;align-items:flex-start;gap:.55rem;
+  }
+  .arch-flow-label{
+    font-family:var(--mono);font-size:.95rem;letter-spacing:.24em;
+    color:var(--acc);text-transform:uppercase;font-weight:700;
+  }
+  .arch-flow-line{
+    display:inline-flex;align-items:center;flex-wrap:wrap;justify-content:flex-start;
+    column-gap:.7rem;row-gap:.35rem;
+    font-family:var(--mono);font-size:1.02rem;color:var(--txt-dim);letter-spacing:.04em;
+  }
+  .arch-flow-line b{color:var(--txt);font-weight:600;font-family:var(--disp);letter-spacing:-.005em;font-size:1.18rem}
+  .arch-flow-sep{color:var(--acc-2);font-weight:700;font-size:1.2rem}
+  .arch-flow-note{
+    font-family:var(--mono);font-size:.82rem;color:var(--txt-faint);
+    letter-spacing:.14em;text-transform:uppercase;text-align:left;
+  }
+  .arch-flow-note b{color:var(--txt-dim);font-weight:600}
+
+  /* Oracle / PLP info cards */
+  .arch-info{
+    display:flex;flex-direction:column;gap:.5rem;
+    padding:.8rem 1.05rem .85rem;
+    border-left:2px solid var(--acc);
+    background:linear-gradient(90deg,rgba(45,212,191,.05),rgba(45,212,191,0) 70%);
+    border-radius:0 8px 8px 0;
+  }
+  .arch-info-plp{
+    border-left-color:var(--acc-warn);
+    background:linear-gradient(90deg,rgba(251,191,36,.05),rgba(251,191,36,0) 70%);
+  }
+  .arch-info-label{
+    font-family:var(--mono);font-size:.82rem;letter-spacing:.22em;
+    color:var(--acc);text-transform:uppercase;font-weight:700;
+  }
+  .arch-info-plp .arch-info-label{color:var(--acc-warn)}
+  .arch-info-text{
+    font-family:var(--body);font-size:1rem;color:var(--txt-dim);
+    font-weight:300;line-height:1.55;
+  }
+  .arch-info-text b{color:var(--txt);font-weight:600}
+  .arch-info-text.dim{color:var(--txt-faint);font-size:.88rem}
 
   /* ---------- payoff chart slide ---------- */
   .payoff-grid{
@@ -4353,30 +4419,32 @@
   }
   .venn .vtag{
     font-family:var(--mono);font-size:11px;letter-spacing:2.4px;
-    fill:var(--txt-dim);text-anchor:middle;text-transform:uppercase;
+    fill:#bdbdbd;text-anchor:middle;text-transform:uppercase;
   }
   .venn .vn-predict{fill:var(--acc)}
   .venn .vt-predict{fill:var(--acc);opacity:.85}
 
   .venn .vu-title{
-    font-family:var(--disp);font-weight:600;font-size:16px;
-    fill:var(--txt);text-anchor:middle;
+    font-family:var(--disp);font-weight:700;font-size:17px;
+    fill:#fff;text-anchor:middle;
+    paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;
   }
   .venn .vu-sub{
-    font-family:var(--mono);font-size:10px;letter-spacing:1.4px;
-    fill:var(--txt-dim);text-anchor:middle;text-transform:uppercase;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:1.4px;
+    fill:#d4d4d4;text-anchor:middle;text-transform:uppercase;
+    paint-order:stroke;stroke:var(--bg);stroke-width:3px;stroke-linejoin:round;
   }
 
   .venn .vcore{
     fill:var(--bg);stroke:var(--acc);stroke-width:1.5;
   }
   .venn .vc-title{
-    font-family:var(--disp);font-weight:700;font-size:15px;
+    font-family:var(--disp);font-weight:700;font-size:16px;
     fill:var(--acc);text-anchor:middle;
   }
   .venn .vc-sub{
-    font-family:var(--mono);font-size:9.5px;letter-spacing:1px;
-    fill:var(--acc);text-anchor:middle;opacity:.8;
+    font-family:var(--mono);font-size:10px;letter-spacing:1px;
+    fill:var(--acc);text-anchor:middle;opacity:.95;
   }
   /* venn — editorial: additive glow on dark bg */
   .venn .vc{mix-blend-mode:screen;fill-opacity:.38}
@@ -4411,14 +4479,32 @@
   <!-- 2 · HOW PREDICTION MARKETS WORK -->
   <section class="slide">
     <h2 class="reveal">What is <span class="acc">Prediction Market</span>?</h2>
-    <div class="reveal subkicker" style="animation-delay:.10s;margin-top:1rem">As a Trader</div>
-    <div class="reveal grid2" style="animation-delay:.14s">
-      <div class="card"><div class="tag">Step 1</div><h3>Deposit USDC</h3><p>連錢包、把 USDC 押進去,作為買 share 的本金。</p></div>
-      <div class="card"><div class="tag">Step 2</div><h3>買 Yes / No share</h3><p>Yes 與 No 一對價格永遠加總到 $1,讀價即讀機率(例:$0.42 → 42%)。</p></div>
-      <div class="card"><div class="tag">Step 3</div><h3>訂單簿撮合</h3><p>專業造市商在<b>每個市場各自報價</b>;熱門市場深、長尾市場淺。</p></div>
-      <div class="card"><div class="tag">Step 4</div><h3>到期裁決</h3><p>Resolution oracle(Polymarket 用 UMA optimistic oracle)判贏輸:贏家 $1、輸家歸零。</p></div>
+    <div class="reveal subkicker" style="animation-delay:.10s;margin-top:auto;margin-bottom:1.4rem">As a Trader</div>
+    <div class="reveal" style="animation-delay:.14s;margin:0 0 auto 0;display:flex;flex-direction:column;gap:2rem;max-width:88ch">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:1.4rem 2.2rem;align-items:baseline">
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">01</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">Deposit USDC</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">連錢包、把 USDC 押進去,作為買 share 的本金。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">02</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">買 Yes / No share</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">Yes 與 No 一對價格永遠加總到 $1,讀價即讀機率(例:$0.42 → 42%)。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">03</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">訂單簿撮合</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">專業造市商在<b>每個市場各自報價</b>;熱門市場深、長尾市場淺。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">04</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">到期裁決</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">Resolution oracle(Polymarket 用 UMA optimistic oracle)判贏輸:贏家 $1、輸家歸零。</p>
+        </div>
+      </div>
     </div>
-    <div class="reveal takeaway" style="animation-delay:.34s">
+    <div class="reveal takeaway" style="animation-delay:.34s;margin-top:0">
       不管哪一家,每個「市場」都是<b>一個獨立的小 app</b>——自己的部位代幣、自己的訂單簿、自己的造市商。
     </div>
   </section>
@@ -4426,10 +4512,24 @@
   <!-- 3 · STRUCTURAL PAIN POINTS -->
   <section class="slide">
     <h2 class="reveal">但這個設計<span class="acc">卡在三件事</span></h2>
-    <div class="reveal grid3" style="animation-delay:.14s;margin:auto 0">
-      <div class="card"><div class="tag">痛點 01</div><h3>流動性鎖在單一市場</h3><p>每個市場自找造市商,長尾日均交易量常常不到 $100。新市場的「冷啟動」是品類級難題——既貴又慢。</p></div>
-      <div class="card"><div class="tag">痛點 02</div><h3>部位是死代幣</h3><p>Yes / No share 只能持有或賣出。<b>不能當抵押、不能加槓桿、不能組成 spread</b>——資本被鎖死在單一押注上。</p></div>
-      <div class="card"><div class="tag">痛點 03</div><h3>產品只有 Yes / No</h3><p>架構天生只能做二元事件。Call / put / spread / range 等選擇權形狀,得從零搭另一套基礎設施。</p></div>
+    <div class="reveal" style="animation-delay:.14s;margin:auto 0;display:flex;flex-direction:column;gap:2rem;max-width:88ch">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:1.4rem 2.2rem;align-items:baseline">
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">01</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">流動性鎖在單一市場</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">每個市場自找造市商,長尾日均交易量常常不到 $100。新市場的「冷啟動」是品類級難題——既貴又慢。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">02</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">部位是死代幣</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">Yes / No share 只能持有或賣出。<b>不能當抵押、不能加槓桿、不能組成 spread</b>——資本被鎖死在單一押注上。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">03</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">產品只有 Yes / No</h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">架構天生只能做二元事件。Call / put / spread / range 等選擇權形狀,得從零搭另一套基礎設施。</p>
+        </div>
+      </div>
     </div>
     <div class="reveal takeaway" style="animation-delay:.30s;margin-top:0">
       共同根源是同一個:它們是 <b>application</b>,不是 <b>chain primitive</b>。
@@ -4599,22 +4699,42 @@
   <!-- 4 · THE PROBLEM -->
   <section class="slide">
     <h2 class="reveal">鏈上選擇權卡關,<br>是<span class="acc">架構</span>問題,不是需求問題</h2>
-    <div class="reveal subkicker" style="animation-delay:.10s;margin-top:1.6rem">市場訊號</div>
+    <div class="reveal subkicker" style="animation-delay:.10s;margin-top:1.2rem">市場訊號</div>
     <div class="reveal grid3" style="animation-delay:.14s">
       <div class="stat"><div class="n">$7B</div><div class="l">Polymarket 2026/2 單月交易量(7 萬日活)</div></div>
       <div class="stat"><div class="n">$7.9T</div><div class="l">2025 永續合約 DEX 交易量</div></div>
       <div class="stat"><div class="n">~$100M</div><div class="l">鏈上選擇權整個品類 TVL — 平的</div></div>
     </div>
-    <div class="reveal takeaway" style="animation-delay:.24s">
-      需求那麼旺、選擇權卻上不來——這 $100M 的平坦 TVL,<b>正是 Slide 3 三個架構痛點(流動性鎖死、部位死代幣、形狀只到 binary)在數字上的後果。</b>
+
+    <div class="reveal subkicker" style="animation-delay:.18s;margin-top:1.4rem">
+      TVL 拆解 · 主流鏈上 Options 協議 <span style="color:var(--txt-faint);letter-spacing:.04em;text-transform:none;font-size:.78rem">(來源:DeFiLlama,約略值)</span>
+    </div>
+    <div class="reveal" style="animation-delay:.22s;margin-top:.6rem">
+      <table class="cmp" style="font-size:.98rem">
+        <thead><tr><th>協議</th><th>TVL(約)</th><th>備註</th></tr></thead>
+        <tbody>
+          <tr><td>Aevo</td><td class="new">~$90M</td><td class="old">類別內 TVL 最大</td></tr>
+          <tr><td>Derive</td><td class="new">~$30–50M</td><td class="old">Lyra V2 後拆分而來</td></tr>
+          <tr><td>Lyra</td><td class="new">~$20–30M</td><td class="old">V2 後流動性分流</td></tr>
+          <tr><td>Dopex</td><td class="new">~$10–20M</td><td class="old">SSOV / Atlantics</td></tr>
+          <tr><td>Premia</td><td class="new">~$5–10M</td><td class="old">peer-to-pool AMM</td></tr>
+          <tr><td>Hegic</td><td class="new">數百萬</td><td class="old">早期協議,規模偏小</td></tr>
+          <tr><td>Ribbon Finance</td><td class="new">已大幅下降</td><td class="old">舊版 TVL 曾 &gt; $100M</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="reveal takeaway" style="animation-delay:.30s">
+      需求那麼旺、選擇權卻上不來。
     </div>
   </section>
 
   <!-- 2 · PREDICT vs PREDICTION MARKET -->
   <section class="slide">
     <h2 class="reveal">Predict <span class="dim">≠</span> Prediction Market </h2>
-    <p class="reveal sub" style="margin-bottom:1.6rem">
-      多數人一聽「Predict」就想到 Prediction Market。但兩者本質不同:一個是 <b class="acc">application</b>,一個是 <b class="acc">可組合的基礎設施 primitive</b>。
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+    <p class="reveal" style="font-size:1.55rem;line-height:1.75;color:var(--txt);font-weight:300;max-width:88ch;margin-bottom:1.5rem">
+      多數人一聽「Predict」就想到 Prediction Market，但兩者本質不同。
     </p>
     <div class="reveal" style="animation-delay:.15s">
     <table class="cmp">
@@ -4628,6 +4748,7 @@
         <tr><td>產品範圍</td><td class="old">二元事件為主</td><td class="new">binary、call/put/spread、槓桿、結構型</td></tr>
       </tbody>
     </table>
+    </div>
     </div>
     <div class="reveal takeaway" style="animation-delay:.3s">
       Prediction Market 是<b>一個產品</b>;DeepBook Predict 是<b>讓人能蓋出那個產品(以及更多)的基礎設施</b>。
@@ -4650,11 +4771,11 @@
           <text x="410" y="100" class="vname">Spot</text>
           <text x="410" y="122" class="vtag">現貨訂單簿</text>
 
-          <text x="200" y="480" class="vname">Margin</text>
-          <text x="200" y="502" class="vtag">槓桿 + 抵押</text>
+          <text x="240" y="480" class="vname">Margin</text>
+          <text x="240" y="502" class="vtag">槓桿 + 抵押</text>
 
-          <text x="620" y="480" class="vname vn-predict">Predict</text>
-          <text x="620" y="502" class="vtag vt-predict">選擇權 + 預測</text>
+          <text x="580" y="480" class="vname vn-predict">Predict</text>
+          <text x="580" y="502" class="vtag vt-predict">選擇權 + 預測</text>
         </g>
 
         <g class="vuses">
@@ -4681,7 +4802,7 @@
     </div>
 
     <div class="reveal takeaway" style="animation-delay:.3s">
-      三個原語結合,設計空間遠大於三個獨立用例的總和——<b>「Only on Sui」的真正意義</b>。
+      三個原語結合,設計空間遠大於三個獨立用例的總和。
     </div>
   </section>
 
@@ -4738,29 +4859,26 @@
         <p style="margin-top:.6rem;color:var(--acc-2)">「BTC 到期會落在 $80k–$82k 嗎?」</p>
       </div>
     </div>
-    <div class="reveal takeaway" style="animation-delay:.3s">
+    <div class="reveal" style="animation-delay:.25s;font-size:1.55rem;color:var(--txt-faint);margin-top:.8rem;line-height:1.35">
+      實作上 Binary 與 Vertical Range <b style="color:var(--txt-dim);font-weight:600">共用同一個 <span class="mono">RangeKey</span></b>:Binary up(&gt;K)編碼成 <span class="mono">(K, +∞)</span>、Binary down(&lt;K)編碼成 <span class="mono">(-∞, K)</span>——Binary 是 Range 的特例。
+    </div>
+    <div class="reveal takeaway" style="animation-delay:.34s">
       Binary 是方向性押注;<b>Range 是 Predict 從「預測市場」長成「選擇權基礎設施」的那一步</b>——它是價差與結構型商品的基本積木。
     </div>
   </section>
 
   <!-- 6 · CORE ARCHITECTURE -->
-  <section class="slide" data-stages="3">
+  <section class="slide" data-stages="6">
     <h2 class="reveal">核心架構:<span class="acc">三條金流 × 一個共享池</span></h2>
-    <p class="reveal sub" style="margin-bottom:1.2rem">
-      Trader 走 <b style="color:var(--txt)">PredictManager → ExpiryMarket</b>;LP 直接上 / 取 <b style="color:var(--txt)">PoolVault</b>。兩條路徑在同一個 Vault 匯流。
-    </p>
-
     <div class="reveal arch" style="animation-delay:.15s">
-      <div class="arch-globals">
-        <div class="arch-globals-group">
-          <span class="arch-globals-label">Predict</span>
-          <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
-          <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
-        </div>
-        <span class="arch-globals-note">每個 PTB 都帶上這兩個 shared object</span>
-      </div>
-
       <div class="arch-canvas">
+        <div class="arch-globals">
+          <div class="arch-globals-group">
+            <span class="arch-globals-label">Predict</span>
+            <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
+            <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
+          </div>
+        </div>
         <svg class="arch-svg" viewBox="0 0 1140 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <defs>
             <linearGradient id="arch-bg-t" x1="0" y1="0" x2="0" y2="1">
@@ -4903,88 +5021,58 @@
       </div>
     </div>
 
-    <div class="reveal takeaway" style="animation-delay:.32s">
+    <div class="arch-extras">
+      <div class="arch-extras-left">
+        <div class="arch-flow" data-stage="4">
+          <span class="arch-flow-label">USER FLOW · BINARY MINT</span>
+          <span class="arch-flow-line">
+            <b>01 取得市場資料</b>
+            <span class="arch-flow-sep">›</span>
+            <b>02 建立 / 取得 Manager</b>
+            <span class="arch-flow-sep">›</span>
+            <b>03 存入 DUSDC</b>
+            <span class="arch-flow-sep">›</span>
+            <b>04 off-chain 預覽</b>
+            <span class="arch-flow-sep">›</span>
+            <b>05 送出 predict::mint</b>
+          </span>
+          <span class="arch-flow-note">binary 與 range 走<b>同一條</b> mint / redeem · 鏈上 &lt; 400ms 確認</span>
+        </div>
+
+        <div class="arch-info arch-info-oracle" data-stage="5">
+          <span class="arch-info-label">ORACLE · BLOCK SCHOLES</span>
+          <p class="arch-info-text">
+            FCA 監管的<b>機構級選擇權定價預言機</b>提供即時 IV surface,鏈上 <b>OracleSVI</b> 物件推導每個 strike / 方向的 ask / bid。
+          </p>
+          <p class="arch-info-text dim">
+            ask 上限 $0.99 · min $0.01 · strike 須落在 oracle tick grid 上(BTC tick = $1)
+          </p>
+        </div>
+      </div>
+
+      <div class="arch-info arch-info-plp" data-stage="6">
+        <span class="arch-info-label">LIQUIDITY · PLP 共享 VAULT</span>
+        <p class="arch-info-text">
+          LP 供應 quote → mint <b>PLP</b>(vault 份額);<b>所有市場從同一個池結算</b>,抵押品保持活躍。
+        </p>
+        <p class="arch-info-text">
+          創新在<b>結構</b> — 用一個共享 vault 接起 LP 池與選擇權定價,讓選擇權流動性第一次能被重複利用。
+        </p>
+        <p class="arch-info-text dim">
+          解掉冷啟動 · 提款受限器把關以覆蓋未平倉 max payout
+        </p>
+      </div>
+    </div>
+
+    <div class="reveal takeaway" style="animation-delay:.4s">
       設計上,<b>使用者與 LP 共用同一個 Vault</b>——這是後面「PLP × 選擇權」創新的結構前提。
-    </div>
-  </section>
-
-  <!-- 7 · DATA FLOW -->
-  <section class="slide">
-    <h2 class="reveal">資料流:一筆 mint 怎麼跑</h2>
-    <p class="reveal sub" style="margin-bottom:2rem">從拿市場資料到鏈上確認,一筆 binary mint 的完整路徑。</p>
-    <div class="reveal flow" style="animation-delay:.15s;margin-top:auto;margin-bottom:auto">
-      <div class="fnode"><div class="fi">STEP 01</div><div class="ft">取得市場資料</div><div class="fd">從 indexer 拿 active oracle 與 strike 階梯</div></div>
-      <div class="farrow">→</div>
-      <div class="fnode"><div class="fi">STEP 02</div><div class="ft">建立 / 取得 Manager</div><div class="fd">create_manager 或沿用既有 PredictManager</div></div>
-      <div class="farrow">→</div>
-      <div class="fnode"><div class="fi">STEP 03</div><div class="ft">存入 quote</div><div class="fd">deposit DUSDC 進 Manager</div></div>
-      <div class="farrow">→</div>
-      <div class="fnode"><div class="fi">STEP 04</div><div class="ft">預覽 mint / redeem</div><div class="fd">off-chain 計算成本與 payout</div></div>
-      <div class="farrow">→</div>
-      <div class="fnode" style="border-color:rgba(45,212,191,.4)"><div class="fi acc">STEP 05</div><div class="ft acc">送出交易</div><div class="fd">predict::mint binary / range,鏈上確認</div></div>
-    </div>
-    <div class="reveal takeaway" style="animation-delay:.4s">
-      路徑刻意對稱:<b>binary 與 range 走同一條 mint / redeem 流程</b>,差別只在 market key。
-    </div>
-  </section>
-
-  <!-- 8 · ORACLE -->
-  <section class="slide">
-    <h2 class="reveal">預言機:Block Scholes 接入</h2>
-    <p class="reveal sub" style="margin-bottom:1.8rem">
-      Predict 的定價不靠群眾報價,而是接入機構級選擇權定價基礎設施。
-    </p>
-    <div class="reveal grid2" style="animation-delay:.15s">
-      <div class="card glow"><div class="tag">合作夥伴</div><h3>Block Scholes</h3>
-        <p>FCA 監管的機構級加密衍生品分析平台,擔任 Predict binary 市場的定價預言機,提供即時 IV surface 與選擇權定價。</p></div>
-      <div class="card"><div class="tag">OracleSVI</div><h3>鏈上定價物件</h3>
-        <p>每個 oracle 對應一個資產 + 到期。協議用它算每個 strike / 方向的公允價,並推導 ask / bid 與生命週期狀態。</p></div>
-    </div>
-    <div class="reveal" style="animation-delay:.28s;margin-top:1.5rem">
-      <ul class="clean">
-        <li><b>ask 上限 $0.99</b> — 近乎確定的押注被擋下(隱含機率須約 5%–95%)</li>
-        <li><b>min ask $0.01</b> — 過深 OTM 的 strike 不能 mint</li>
-        <li><b>tick grid</b> — strike 須落在 oracle 的格點上(BTC tick = $1)</li>
-      </ul>
-    </div>
-    <div class="reveal takeaway" style="animation-delay:.4s">
-      這是把<b>機構級選擇權定價</b>第一次帶進完全鏈上、次秒結算的環境。
-    </div>
-  </section>
-
-  <!-- 9 · LIQUIDITY & INNOVATION -->
-  <section class="slide">
-    <h2 class="reveal">流動性與創新:<span class="acc">PLP 共享 Vault</span></h2>
-    <p class="reveal sub" style="margin-bottom:1.6rem">
-      LP 共享池不新,選擇權定價也不新。創新在<b>結構</b>——用一個共享 vault 把兩者接起來。
-    </p>
-    <div class="reveal grid2" style="animation-delay:.15s">
-      <div class="card" style="border-color:var(--line)">
-        <div class="tag" style="color:var(--txt-faint)">傳統鏈上選擇權</div>
-        <h3 class="dim">流動性鎖在每個部位</h3>
-        <p>抵押品被鎖死在單一部位,無法支撐其他產品,資本效率低。</p>
-      </div>
-      <div class="card glow" style="border-color:rgba(45,212,191,.4)">
-        <div class="tag acc">DeepBook Predict</div>
-        <h3 class="acc">PLP 共享 vault 撐所有部位</h3>
-        <p>LP 供應 quote → mint PLP(vault 份額)。所有市場的部位從同一個池結算,抵押品保持活躍。</p>
-      </div>
-    </div>
-    <div class="reveal" style="animation-delay:.28s;margin-top:1.5rem">
-      <ul class="clean">
-        <li><b>解掉冷啟動</b> — 每個 Sui builder 都能用上原本需大量時間與資本才能建起的選擇權基礎設施</li>
-        <li><b>提款受限</b> — vault 須保留足夠 quote 覆蓋未平倉的 max payout,提款限制器把關</li>
-      </ul>
-    </div>
-    <div class="reveal takeaway" style="animation-delay:.4s">
-      創新不在發明 LP 池或選擇權定價,<b>而在用一個共享 vault 接起兩者,讓選擇權流動性第一次能被重複利用</b>。
     </div>
   </section>
 
   <!-- 10 · ROADMAP + STATUS -->
   <section class="slide">
-    <h2 class="reveal">路線圖 <span class="dim">&amp;</span> 現況限制</h2>
-    <div class="grid2" style="margin-top:1.6rem;gap:2.4rem">
+    <h2 class="reveal" style="text-align:center">路線圖 <span class="dim">&amp;</span> 現況限制</h2>
+    <div class="grid2" style="margin-top:1.6rem;gap:3.2rem;max-width:1500px;margin-inline:auto;width:100%">
       <div class="reveal" style="animation-delay:.12s">
         <div class="pill live" style="margin-bottom:1.3rem"><span class="pulse"></span> 協議發展路線</div>
         <div class="tl">
