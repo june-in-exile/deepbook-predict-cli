@@ -4024,6 +4024,15 @@
   .closing .cta{margin-top:2.4rem;font-family:var(--mono);font-size:.95rem;
     letter-spacing:.2em;color:var(--txt-faint);text-transform:uppercase;
     display:flex;gap:.7rem;align-items:center;justify-content:center}
+  .closing .npm-link{margin-top:1.4rem;display:flex;gap:.7rem;align-items:center;justify-content:center;
+    font-size:.95rem}
+  .closing .npm-link .npm-tag{font-family:var(--mono);font-size:.7rem;letter-spacing:.18em;
+    color:var(--bg);background:var(--acc);padding:.2rem .55rem;border-radius:4px;
+    text-transform:uppercase;font-weight:600}
+  .closing .npm-link a{color:var(--txt-dim);text-decoration:none;
+    border-bottom:1px dashed var(--line);padding-bottom:2px;
+    transition:color .2s,border-color .2s}
+  .closing .npm-link a:hover{color:var(--acc);border-bottom-color:var(--acc)}
 
   .hint{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);z-index:30;
     font-family:var(--mono);font-size:.78rem;color:var(--txt-faint);letter-spacing:.14em;
@@ -4059,12 +4068,17 @@
   }
   /* ---------- slide 06: architecture diagram ---------- */
   .arch{display:flex;flex-direction:column;gap:1.1rem;flex:1;min-height:0}
-  .arch-globals{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.45rem;flex-wrap:wrap}
+  .arch-globals{
+    position:absolute;top:6%;left:50%;transform:translateX(-50%);
+    z-index:5;pointer-events:none;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.45rem;flex-wrap:wrap;
+  }
   .arch-globals-group{
     display:inline-flex;align-items:center;gap:.75rem;
     padding:.6rem 1rem .6rem 1.25rem;
     border:1px solid var(--line-2);border-radius:20px;
     background:linear-gradient(180deg,rgba(45,212,191,.04),rgba(45,212,191,0));
+    pointer-events:auto;
   }
   .arch-globals-label{
     font-family:var(--mono);font-size:.95rem;font-weight:700;
@@ -4101,70 +4115,109 @@
   .arch-svg .arch-stage.on .pulse-dot{animation:archPulse 2.6s ease-in-out infinite}
   @keyframes archPulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-  /* extras grid below the arch diagram — left col holds USER FLOW + ORACLE, right col holds PLP */
-  .arch-extras{
-    display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
-    gap:.9rem 1.6rem;
-    margin-top:.4rem;
+  /* 3-column row inside arch-canvas: USER FLOW | SVG | PLP VAULT */
+  .arch-row{
+    width:100%;flex:1;min-height:0;position:relative;
+    display:flex;align-items:center;gap:clamp(.9rem,1.5vw,1.6rem);
   }
-  .arch-extras-left{display:flex;flex-direction:column;gap:.85rem;min-width:0}
+  .arch-side-left,
+  .arch-side-right{
+    align-self:stretch;
+    display:flex;flex-direction:column;justify-content:center;
+    min-width:0;
+  }
+  .arch-side-left{flex:0 0 clamp(190px,15.5vw,260px)}
+  .arch-side-right{flex:0 0 clamp(210px,17vw,290px)}
+  .arch-row .arch-svg{flex:1;min-width:0;width:auto;height:100%;max-height:560px}
 
-  /* staged reveal for non-SVG stage elements (USER FLOW / ORACLE / PLP) */
+  /* staged reveal for non-SVG stage elements (USER FLOW / ORACLE / PLP) —
+     unified: fade + gentle rise, matching the deck-wide .reveal language */
   .arch-flow[data-stage],
   .arch-info[data-stage]{
-    opacity:0;visibility:hidden;transform:translateY(8px);
-    transition:opacity .35s ease,visibility 0s .35s,transform .35s ease;
+    opacity:0;visibility:hidden;transform:translateY(10px);
+    transition:opacity .45s ease,visibility 0s .45s,transform .45s cubic-bezier(.2,.7,.2,1);
   }
   .arch-flow[data-stage].on,
   .arch-info[data-stage].on{
     opacity:1;visibility:visible;transform:none;
-    transition:opacity .45s ease,visibility 0s 0s,transform .45s cubic-bezier(.2,.7,.2,1);
+    transition:opacity .55s ease,visibility 0s 0s,transform .55s cubic-bezier(.2,.7,.2,1);
   }
 
-  /* user flow text — left-aligned, enlarged */
+  /* USER FLOW — tall left column, vertical step list */
   .arch-flow{
-    display:flex;flex-direction:column;align-items:flex-start;gap:.55rem;
+    display:flex;flex-direction:column;align-items:flex-start;gap:.85rem;
+    padding:.4rem .2rem;
   }
   .arch-flow-label{
-    font-family:var(--mono);font-size:.95rem;letter-spacing:.24em;
+    font-family:var(--mono);font-size:.85rem;letter-spacing:.22em;
     color:var(--acc);text-transform:uppercase;font-weight:700;
   }
-  .arch-flow-line{
-    display:inline-flex;align-items:center;flex-wrap:wrap;justify-content:flex-start;
-    column-gap:.7rem;row-gap:.35rem;
-    font-family:var(--mono);font-size:1.02rem;color:var(--txt-dim);letter-spacing:.04em;
+  .arch-flow-steps{
+    list-style:none;padding:0;margin:0;width:100%;
+    display:flex;flex-direction:column;gap:.55rem;
+    counter-reset:flow;
   }
-  .arch-flow-line b{color:var(--txt);font-weight:600;font-family:var(--disp);letter-spacing:-.005em;font-size:1.18rem}
-  .arch-flow-sep{color:var(--acc-2);font-weight:700;font-size:1.2rem}
+  .arch-flow-steps li{
+    display:flex;align-items:baseline;gap:.7rem;
+    font-family:var(--disp);font-size:clamp(1rem,1.05vw,1.18rem);
+    color:var(--txt);font-weight:500;line-height:1.3;letter-spacing:-.005em;
+  }
+  .arch-flow-steps li::before{
+    counter-increment:flow;
+    content:"0" counter(flow);
+    font-family:var(--mono);font-size:.78rem;color:var(--acc);
+    font-weight:700;letter-spacing:.1em;flex:0 0 auto;
+  }
+  .arch-flow-steps .mono{font-family:var(--mono);font-size:.92em;color:var(--txt-dim)}
   .arch-flow-note{
-    font-family:var(--mono);font-size:.82rem;color:var(--txt-faint);
-    letter-spacing:.14em;text-transform:uppercase;text-align:left;
+    font-family:var(--mono);font-size:.72rem;color:var(--txt-faint);
+    letter-spacing:.1em;text-transform:uppercase;text-align:left;
+    line-height:1.55;margin-top:.15rem;
   }
   .arch-flow-note b{color:var(--txt-dim);font-weight:600}
 
   /* Oracle / PLP info cards */
   .arch-info{
     display:flex;flex-direction:column;gap:.5rem;
-    padding:.8rem 1.05rem .85rem;
+    padding:.85rem 1.05rem .95rem;
     border-left:2px solid var(--acc);
-    background:linear-gradient(90deg,rgba(45,212,191,.05),rgba(45,212,191,0) 70%);
+    background:linear-gradient(90deg,rgba(45,212,191,.05),rgba(45,212,191,0) 80%);
     border-radius:0 8px 8px 0;
   }
   .arch-info-plp{
-    border-left-color:var(--acc-warn);
-    background:linear-gradient(90deg,rgba(251,191,36,.05),rgba(251,191,36,0) 70%);
+    border-left:none;
+    background:none;
+    padding-left:0;
+  }
+  /* Oracle band — matches the dashed-gray Oracle box in the SVG */
+  .arch-info-oracle{
+    border-left:2px dashed #737373;
+    background:linear-gradient(90deg,rgba(163,163,163,.05),rgba(163,163,163,0) 80%);
   }
   .arch-info-label{
     font-family:var(--mono);font-size:.82rem;letter-spacing:.22em;
     color:var(--acc);text-transform:uppercase;font-weight:700;
   }
   .arch-info-plp .arch-info-label{color:var(--acc-warn)}
+  .arch-info-oracle .arch-info-label{color:#a3a3a3}
   .arch-info-text{
-    font-family:var(--body);font-size:1rem;color:var(--txt-dim);
-    font-weight:300;line-height:1.55;
+    font-family:var(--body);font-size:clamp(.94rem,1vw,1.05rem);
+    color:var(--txt-dim);font-weight:300;line-height:1.55;
   }
   .arch-info-text b{color:var(--txt);font-weight:600}
-  .arch-info-text.dim{color:var(--txt-faint);font-size:.88rem}
+  .arch-info-text.dim,
+  .arch-info-text .dim{color:var(--txt-faint);font-size:.92em}
+
+  /* Oracle full-width bottom band */
+  .arch-info-bottom{
+    margin-top:-2.4rem;margin-bottom:1rem;
+    align-self:center;max-width:1180px;
+    display:flex;flex-direction:row;align-items:center;gap:1.1rem;
+    padding:.7rem 1.1rem;
+    border-left:none;background:none;border-radius:0;
+  }
+  .arch-info-bottom .arch-info-label{flex:0 0 auto;white-space:nowrap}
+  .arch-info-bottom .arch-info-text{flex:1;min-width:0;font-size:clamp(.95rem,1vw,1.05rem)}
 
   /* ---------- payoff chart slide ---------- */
   .payoff-grid{
@@ -4868,18 +4921,30 @@
   </section>
 
   <!-- 6 · CORE ARCHITECTURE -->
-  <section class="slide" data-stages="6">
-    <h2 class="reveal">核心架構:<span class="acc">三條金流 × 一個共享池</span></h2>
+  <section class="slide" data-stages="3">
+    <h2 class="reveal">核心架構</h2>
     <div class="reveal arch" style="animation-delay:.15s">
       <div class="arch-canvas">
-        <div class="arch-globals">
-          <div class="arch-globals-group">
-            <span class="arch-globals-label">Predict</span>
-            <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
-            <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
+        <div class="arch-row">
+          <div class="arch-globals">
+            <div class="arch-globals-group">
+              <span class="arch-globals-label">Predict</span>
+              <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
+              <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
+            </div>
           </div>
-        </div>
-        <svg class="arch-svg" viewBox="0 0 1140 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <aside class="arch-flow arch-side-left" data-stage="1">
+            <span class="arch-flow-label">USER FLOW · BINARY MINT</span>
+            <ol class="arch-flow-steps">
+              <li>取得市場資料</li>
+              <li>建立 / 取得 Manager</li>
+              <li>存入 DUSDC</li>
+              <li>off-chain 預覽</li>
+              <li>送出 <span class="mono">predict::mint</span></li>
+            </ol>
+            <span class="arch-flow-note">binary 與 range 走<b>同一條</b> mint / redeem · 鏈上 &lt; 400ms 確認</span>
+          </aside>
+          <svg class="arch-svg" viewBox="0 0 1140 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <defs>
             <linearGradient id="arch-bg-t" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stop-color="#161616"></stop>
@@ -4990,89 +5055,55 @@
           <rect x="468" y="253" width="44" height="14" rx="3" fill="#0a0a0a"></rect>
           <text x="490" y="263" text-anchor="middle" font-family="Space Mono,monospace" font-size="10" letter-spacing=".5" fill="#a3a3a3" font-weight="700">prices</text>
 
-          <g class="arch-stage" data-stage="1">
-            <line class="ln solid" x1="245" y1="132" x2="245" y2="222" stroke="#2dd4bf" stroke-width="1.8" marker-end="url(#ah-t)"></line>
-            <circle class="pulse-dot" cx="245" cy="132" r="3.2" fill="#2dd4bf"></circle>
-            <circle cx="245" cy="177" r="15" fill="#0a0a0a" stroke="#2dd4bf" stroke-width="1.5"></circle>
-            <text x="245" y="183" text-anchor="middle" font-family="Sora,sans-serif" font-size="15" font-weight="800" fill="#2dd4bf">1</text>
+          <g>
+            <line x1="245" y1="132" x2="245" y2="222" stroke="#2dd4bf" stroke-width="1.8" marker-end="url(#ah-t)"></line>
             <text x="272" y="173" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#2dd4bf" font-weight="700">MINT</text>
             <text x="272" y="188" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#2dd4bf" font-weight="700">REDEEM</text>
           </g>
 
-          <g class="arch-stage" data-stage="2">
-            <line class="ln dashed" x1="245" y1="312" x2="245" y2="410" stroke="#60a5fa" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah-a)" marker-start="url(#ah-a)"></line>
-            <circle cx="245" cy="361" r="15" fill="#0a0a0a" stroke="#60a5fa" stroke-width="1.5"></circle>
-            <text x="245" y="367" text-anchor="middle" font-family="Sora,sans-serif" font-size="15" font-weight="800" fill="#60a5fa">2</text>
+          <g>
+            <line x1="245" y1="312" x2="245" y2="410" stroke="#60a5fa" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#ah-a)" marker-start="url(#ah-a)"></line>
             <text x="272" y="357" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#60a5fa" font-weight="700">GROW</text>
             <text x="272" y="372" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#60a5fa" font-weight="700">SHRINK / COMPACT</text>
           </g>
 
-          <g class="arch-stage" data-stage="3">
-            <line class="ln solid" x1="895" y1="132" x2="895" y2="410" stroke="#fbbf24" stroke-width="1.8" marker-end="url(#ah-l)" marker-start="url(#ah-l)"></line>
-            <circle class="pulse-dot" cx="895" cy="132" r="3.2" fill="#fbbf24"></circle>
-            <circle cx="895" cy="271" r="15" fill="#0a0a0a" stroke="#fbbf24" stroke-width="1.5"></circle>
-            <text x="895" y="277" text-anchor="middle" font-family="Sora,sans-serif" font-size="15" font-weight="800" fill="#fbbf24">3</text>
+          <g>
+            <line x1="895" y1="132" x2="895" y2="410" stroke="#fbbf24" stroke-width="1.8" marker-end="url(#ah-l)" marker-start="url(#ah-l)"></line>
             <text x="922" y="267" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#fbbf24" font-weight="700">SUPPLY</text>
             <text x="922" y="282" font-family="Space Mono,monospace" font-size="11" letter-spacing="1.5" fill="#fbbf24" font-weight="700">WITHDRAW</text>
             <text x="922" y="302" font-family="Noto Sans TC,Sora,sans-serif" font-size="11" fill="#525252" font-style="italic">LP 直戳,不經 Market</text>
           </g>
 
-        </svg>
+          </svg>
+          <aside class="arch-info arch-side-right arch-info-plp" data-stage="3">
+            <span class="arch-info-label">LIQUIDITY · PLP 共享 VAULT</span>
+            <p class="arch-info-text">
+              LP 供應 quote → mint <b>PLP</b>(vault 份額);<b>所有市場從同一個池結算</b>,抵押品保持活躍。
+            </p>
+            <p class="arch-info-text">
+              創新在<b>結構</b> — 用一個共享 vault 接起 LP 池與選擇權定價,讓選擇權流動性第一次能被重複利用。
+            </p>
+            <p class="arch-info-text dim">
+              解掉冷啟動 · 提款限制器把關以覆蓋未平倉 max payout
+            </p>
+          </aside>
+        </div>
       </div>
     </div>
 
-    <div class="arch-extras">
-      <div class="arch-extras-left">
-        <div class="arch-flow" data-stage="4">
-          <span class="arch-flow-label">USER FLOW · BINARY MINT</span>
-          <span class="arch-flow-line">
-            <b>01 取得市場資料</b>
-            <span class="arch-flow-sep">›</span>
-            <b>02 建立 / 取得 Manager</b>
-            <span class="arch-flow-sep">›</span>
-            <b>03 存入 DUSDC</b>
-            <span class="arch-flow-sep">›</span>
-            <b>04 off-chain 預覽</b>
-            <span class="arch-flow-sep">›</span>
-            <b>05 送出 predict::mint</b>
-          </span>
-          <span class="arch-flow-note">binary 與 range 走<b>同一條</b> mint / redeem · 鏈上 &lt; 400ms 確認</span>
-        </div>
-
-        <div class="arch-info arch-info-oracle" data-stage="5">
-          <span class="arch-info-label">ORACLE · BLOCK SCHOLES</span>
-          <p class="arch-info-text">
-            FCA 監管的<b>機構級選擇權定價預言機</b>提供即時 IV surface,鏈上 <b>OracleSVI</b> 物件推導每個 strike / 方向的 ask / bid。
-          </p>
-          <p class="arch-info-text dim">
-            ask 上限 $0.99 · min $0.01 · strike 須落在 oracle tick grid 上(BTC tick = $1)
-          </p>
-        </div>
-      </div>
-
-      <div class="arch-info arch-info-plp" data-stage="6">
-        <span class="arch-info-label">LIQUIDITY · PLP 共享 VAULT</span>
-        <p class="arch-info-text">
-          LP 供應 quote → mint <b>PLP</b>(vault 份額);<b>所有市場從同一個池結算</b>,抵押品保持活躍。
-        </p>
-        <p class="arch-info-text">
-          創新在<b>結構</b> — 用一個共享 vault 接起 LP 池與選擇權定價,讓選擇權流動性第一次能被重複利用。
-        </p>
-        <p class="arch-info-text dim">
-          解掉冷啟動 · 提款受限器把關以覆蓋未平倉 max payout
-        </p>
-      </div>
-    </div>
-
-    <div class="reveal takeaway" style="animation-delay:.4s">
-      設計上,<b>使用者與 LP 共用同一個 Vault</b>——這是後面「PLP × 選擇權」創新的結構前提。
+    <div class="arch-info arch-info-oracle arch-info-bottom" data-stage="2">
+      <span class="arch-info-label">ORACLE · BLOCK SCHOLES</span>
+      <p class="arch-info-text">
+        FCA 監管的<b>機構級選擇權定價預言機</b>提供即時 IV surface,鏈上 <b>OracleSVI</b> 物件推導每個 strike / 方向的 ask / bid。<br><span class="dim"> · ask 上限 $0.99 · min $0.01 · strike 須落在 oracle tick grid 上(BTC tick = $1)</span>
+      </p>
     </div>
   </section>
 
   <!-- 10 · ROADMAP + STATUS -->
   <section class="slide">
-    <h2 class="reveal" style="text-align:center">路線圖 <span class="dim">&amp;</span> 現況限制</h2>
-    <div class="grid2" style="margin-top:1.6rem;gap:3.2rem;max-width:1500px;margin-inline:auto;width:100%">
+    <h2 class="reveal">路線圖 <span class="dim">&amp;</span> 現況限制</h2>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0">
+    <div class="grid2" style="gap:3.2rem;max-width:1500px;width:100%">
       <div class="reveal" style="animation-delay:.12s">
         <div class="pill live" style="margin-bottom:1.3rem"><span class="pulse"></span> 協議發展路線</div>
         <div class="tl">
@@ -5091,8 +5122,9 @@
         </ul>
       </div>
     </div>
+    </div>
     <div class="reveal takeaway" style="animation-delay:.4s">
-      現在的 Predict 是<b>一個窄但真實的整合面</b>——拿來驗證整合,不是拿來上線。這種誠實對技術受眾反而加分。
+      現在的 Predict 是<b>一個窄但真實的整合面</b>。
     </div>
   </section>
 
@@ -5100,6 +5132,12 @@
   <section class="slide closing">
     <div class="reveal cta" style="animation-delay:.42s">
       <span class="pulse"></span> Live Demo · 切換到終端機
+    </div>
+    <div class="reveal npm-link" style="animation-delay:.6s">
+      <span class="npm-tag">npm</span>
+      <a href="https://www.npmjs.com/package/deepbook-predict-cli" target="_blank" rel="noopener" class="mono">
+        npmjs.com/package/deepbook-predict-cli
+      </a>
     </div>
   </section>
 
