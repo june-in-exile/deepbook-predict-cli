@@ -4759,9 +4759,6 @@
       <div class="stat"><div class="n">~$100M</div><div class="l">鏈上選擇權整個品類 TVL — 平的</div></div>
     </div>
 
-    <div class="reveal subkicker" style="animation-delay:.18s;margin-top:1.4rem">
-      TVL 拆解 · 主流鏈上 Options 協議 <span style="color:var(--txt-faint);letter-spacing:.04em;text-transform:none;font-size:.78rem">(來源:DeFiLlama,約略值)</span>
-    </div>
     <div class="reveal" style="animation-delay:.22s;margin-top:.6rem">
       <table class="cmp" style="font-size:.98rem">
         <thead><tr><th>協議</th><th>TVL(約)</th><th>備註</th></tr></thead>
@@ -4776,9 +4773,8 @@
         </tbody>
       </table>
     </div>
-
-    <div class="reveal takeaway" style="animation-delay:.30s">
-      需求那麼旺、選擇權卻上不來。
+    <div class="reveal subkicker" style="animation-delay:.18s;margin-top:1.4rem">
+      <span style="color:var(--txt-faint);letter-spacing:.04em;text-transform:none;font-size:.78rem">(來源:DeFiLlama,約略值)</span>
     </div>
   </section>
 
@@ -4915,8 +4911,32 @@
     <div class="reveal" style="animation-delay:.25s;font-size:1.55rem;color:var(--txt-faint);margin-top:.8rem;line-height:1.35">
       實作上 Binary 與 Vertical Range <b style="color:var(--txt-dim);font-weight:600">共用同一個 <span class="mono">RangeKey</span></b>:Binary up(&gt;K)編碼成 <span class="mono">(K, +∞)</span>、Binary down(&lt;K)編碼成 <span class="mono">(-∞, K)</span>——Binary 是 Range 的特例。
     </div>
-    <div class="reveal takeaway" style="animation-delay:.34s">
-      Binary 是方向性押注;<b>Range 是 Predict 從「預測市場」長成「選擇權基礎設施」的那一步</b>——它是價差與結構型商品的基本積木。
+  </section>
+
+  <!-- 5.5 · RANGE → STRUCTURED PRODUCTS -->
+  <section class="slide">
+    <h2 class="reveal">從 <span class="acc">Range</span> 長出結構型商品</h2>
+    <div class="reveal" style="animation-delay:.14s;margin:auto 0;display:flex;flex-direction:column;gap:2rem;max-width:88ch">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:1.4rem 2.2rem;align-items:baseline">
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">01</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">本金保護型 <span style="color:var(--txt-faint);font-weight:300;font-size:1.1rem">· Principal-Protected Note</span></h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">到期保證還本金,另外吃一段標的漲幅。組法:<b>zero-bond + call spread</b>。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">02</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">區間累息 <span style="color:var(--txt-faint);font-weight:300;font-size:1.1rem">· Range Accrual</span></h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">標的留在指定價區內,每天領一筆利息;脫離區間就停息。底料就是 <b>range</b>。</p>
+        </div>
+        <div style="font-family:var(--mono);font-size:.85rem;letter-spacing:.24em;color:var(--acc)">03</div>
+        <div>
+          <h3 style="font-family:var(--disp);font-weight:600;font-size:1.55rem;margin-bottom:.45rem">Autocallable <span style="color:var(--txt-faint);font-weight:300;font-size:1.1rem">· 自動贖回 / Snowball</span></h3>
+          <p style="color:var(--txt-dim);font-size:1.15rem;font-weight:300;line-height:1.6">標的觸及預設價位即提前贖回,給事先談好的高息。<b>barrier + 高 coupon</b> 組成。</p>
+        </div>
+      </div>
+    </div>
+    <div class="reveal takeaway" style="animation-delay:.30s;margin-top:0">
+      <b>Range 是 Predict 從「預測市場」長成「選擇權基礎設施」的那一步</b>——TradFi 兆級美元的結構型商品,卡的就是缺這層 spread 底料。
     </div>
   </section>
 
