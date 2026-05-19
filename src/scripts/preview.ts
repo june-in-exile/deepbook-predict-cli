@@ -194,7 +194,7 @@ const parseRanges = (argv: ReadonlyArray<string>): readonly RangePair[] => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run preview -- [--strikes <K1,K2,...>] [--ranges <L1-H1,L2-H2,...>]
+  deepbook-predict preview -- [--strikes <K1,K2,...>] [--ranges <L1-H1,L2-H2,...>]
                      [--qty <human>] [--oracle <id>]
 
   At least one of --strikes / --ranges is required. Both can be supplied;
@@ -211,9 +211,9 @@ Defaults:
            pass --oracle <id> to override.
 
 Examples:
-  npm run preview -- --strikes 79000,80000,80500,81000,82000
-  npm run preview -- --ranges 79500-80500,80500-81500
-  npm run preview -- --strikes 80000,80500 --ranges 79500-80500,80500-81500
+  deepbook-predict preview --strikes 79000,80000,80500,81000,82000
+  deepbook-predict preview --ranges 79500-80500,80500-81500
+  deepbook-predict preview --strikes 80000,80500 --ranges 79500-80500,80500-81500
 `,
   );
 };

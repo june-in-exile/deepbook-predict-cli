@@ -224,7 +224,7 @@ const confirm = async (question: string): Promise<boolean> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run redeem-range -- --lower <human> --higher <human> --qty <human> [--oracle <id>] [--execute] [--yes]
+  deepbook-predict redeem-range --lower <human> --higher <human> --qty <human> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
   --oracle auto-derived from your manager's matching range position (lower, higher).
@@ -239,9 +239,9 @@ Pre-flight gates:
   5. Interactive confirmation (skip with --yes)
 
 Examples:
-  npm run redeem-range -- --lower 80000 --higher 81000 --qty 5                # dry-run
-  npm run redeem-range -- --lower 80000 --higher 81000 --qty 5 --execute      # sign
-  npm run redeem-range -- --lower 80000 --higher 81000 --qty 5 --execute --yes
+  deepbook-predict redeem-range --lower 80000 --higher 81000 --qty 5                # dry-run
+  deepbook-predict redeem-range --lower 80000 --higher 81000 --qty 5 --execute      # sign
+  deepbook-predict redeem-range --lower 80000 --higher 81000 --qty 5 --execute --yes
 `,
   );
 };

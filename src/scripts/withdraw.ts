@@ -49,7 +49,7 @@ const main = async (): Promise<void> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run withdraw -- --amount <human> [--quote <symbol|type>] [--recipient <addr>] [--execute]
+  deepbook-predict withdraw --amount <human> [--quote <symbol|type>] [--recipient <addr>] [--execute]
 
 Defaults:
   coin type: auto-resolved from chain accepted_quotes (override with --quote)
@@ -58,8 +58,8 @@ Defaults:
   recipient: same as sender
 
 Examples:
-  npm run withdraw -- --amount 50              # dry-run only
-  npm run withdraw -- --amount 50 --execute    # sign + submit
+  deepbook-predict withdraw --amount 50              # dry-run only
+  deepbook-predict withdraw --amount 50 --execute    # sign + submit
 `,
   );
 };

@@ -196,7 +196,7 @@ const confirm = async (question: string): Promise<boolean> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run redeem -- --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
+  deepbook-predict redeem --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
   --oracle auto-derived from your manager's matching position (strike, direction).
@@ -211,9 +211,9 @@ Pre-flight gates:
   5. Interactive confirmation (skip with --yes)
 
 Examples:
-  npm run redeem -- --strike 80500 --qty 5 --direction up                # dry-run
-  npm run redeem -- --strike 80500 --qty 5 --direction up --execute      # sign
-  npm run redeem -- --strike 80500 --qty 5 --direction up --execute --yes
+  deepbook-predict redeem --strike 80500 --qty 5 --direction up                # dry-run
+  deepbook-predict redeem --strike 80500 --qty 5 --direction up --execute      # sign
+  deepbook-predict redeem --strike 80500 --qty 5 --direction up --execute --yes
 `,
   );
 };

@@ -123,7 +123,7 @@ const confirm = async (question: string): Promise<boolean> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run lp-supply -- --amount <human> [--execute] [--yes]
+  deepbook-predict lp-supply --amount <human> [--execute] [--yes]
 
   Supplies DUSDC to the vault in exchange for PLP shares. The returned
   Coin<PLP> is transferred to the sender automatically.
@@ -135,8 +135,8 @@ Share math (mirrors predict::supply):
   vault_value = vault.balance - vault.total_mtm
 
 Examples:
-  npm run lp-supply -- --amount 100               # dry-run only
-  npm run lp-supply -- --amount 100 --execute     # sign + submit
+  deepbook-predict lp-supply --amount 100               # dry-run only
+  deepbook-predict lp-supply --amount 100 --execute     # sign + submit
 `,
   );
 };

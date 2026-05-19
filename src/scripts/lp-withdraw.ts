@@ -144,7 +144,7 @@ const confirm = async (question: string): Promise<boolean> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run lp-withdraw -- --shares <human> [--execute] [--yes]
+  deepbook-predict lp-withdraw --shares <human> [--execute] [--yes]
 
   Burns PLP shares for DUSDC. The returned Coin<Quote> is transferred
   to the sender automatically.
@@ -162,8 +162,8 @@ Math (mirrors predict::shares_to_amount + EWithdrawExceedsAvailable):
   must satisfy: amount <= balance - total_max_payout
 
 Examples:
-  npm run lp-withdraw -- --shares 50              # dry-run
-  npm run lp-withdraw -- --shares 50 --execute    # sign + submit
+  deepbook-predict lp-withdraw --shares 50              # dry-run
+  deepbook-predict lp-withdraw --shares 50 --execute    # sign + submit
 `,
   );
 };

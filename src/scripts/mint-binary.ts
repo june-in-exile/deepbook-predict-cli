@@ -61,7 +61,7 @@ const main = async (): Promise<void> => {
   if (balance < mintCost) {
     process.stdout.write(
       `\n  ABORT: insufficient manager balance — need ${mintCost}, have ${balance}.\n` +
-        `         Run \`npm run deposit -- --amount <enough> --execute\` first.\n`,
+        `         Run \`deepbook-predict deposit --amount <enough> --execute\` first.\n`,
     );
     return;
   }
@@ -99,7 +99,7 @@ const main = async (): Promise<void> => {
 const assertOracleTradable = (oracle: OracleState): void => {
   if (oracle.lifecycle !== Lifecycle.Active) {
     throw new Error(
-      `oracle ${oracle.id} is ${oracle.lifecycle}; mint requires Active. Pick a fresh oracle (npm run markets).`,
+      `oracle ${oracle.id} is ${oracle.lifecycle}; mint requires Active. Pick a fresh oracle (deepbook-predict markets).`,
     );
   }
 };
@@ -186,7 +186,7 @@ const confirm = async (question: string): Promise<boolean> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run mint-binary -- --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
+  deepbook-predict mint-binary --strike <human> --qty <human> --direction <up|down> [--oracle <id>] [--execute] [--yes]
 
 Defaults:
   --oracle auto-picked from indexer's active oracle (next to settle).
@@ -198,9 +198,9 @@ Scaling:
   --qty     human dollars of max payout (e.g. 10 = \$10), scaled to 1e6 raw
 
 Examples:
-  npm run mint-binary -- --strike 80000 --qty 5 --direction up
-  npm run mint-binary -- --strike 80000 --qty 5 --direction up --execute
-  npm run mint-binary -- --strike 80000 --qty 5 --direction up --execute --yes  # skip confirm
+  deepbook-predict mint-binary --strike 80000 --qty 5 --direction up
+  deepbook-predict mint-binary --strike 80000 --qty 5 --direction up --execute
+  deepbook-predict mint-binary --strike 80000 --qty 5 --direction up --execute --yes  # skip confirm
 
 Pre-flight checks:
   - oracle lifecycle must be Active

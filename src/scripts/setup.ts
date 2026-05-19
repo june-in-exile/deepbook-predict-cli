@@ -150,16 +150,16 @@ const printNextSteps = (s: Status, quote: Quote): void => {
   if (s.managerDusdcRaw < LOW_BALANCE_THRESHOLD_RAW) {
     process.stdout.write(
       `\n  Next: deposit some ${quote.symbol} so trading can begin:\n` +
-        `       npm run deposit -- --amount 100 --execute\n`,
+        `       deepbook-predict deposit --amount 100 --execute\n`,
     );
     return;
   }
   process.stdout.write(
     `\n  Ready to trade. Examples:\n` +
-      `       npm run preview     -- --strike 80500 --qty 5\n` +
-      `       npm run mint-binary -- --strike 80500 --qty 5 --direction up --execute\n` +
-      `       npm run lp-supply   -- --amount 100 --execute\n` +
-      `       npm run inspect\n`,
+      `       deepbook-predict preview     --strike 80500 --qty 5\n` +
+      `       deepbook-predict mint-binary --strike 80500 --qty 5 --direction up --execute\n` +
+      `       deepbook-predict lp-supply   --amount 100 --execute\n` +
+      `       deepbook-predict inspect\n`,
   );
 };
 
@@ -168,8 +168,8 @@ const ok = (b: boolean): string => (b ? 'yes' : 'no');
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run setup                       # check status, print readiness + next steps
-  npm run setup -- --create-manager   # call predict::create_manager (only if no manager)
+  deepbook-predict setup                       # check status, print readiness + next steps
+  deepbook-predict setup --create-manager   # call predict::create_manager (only if no manager)
 
 Idempotent: running setup multiple times reports the same state and never
 creates a second manager, never auto-deposits.

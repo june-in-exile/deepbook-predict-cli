@@ -1,14 +1,68 @@
-# DeepBook Predict CLI
+# DeepBook Predict — Toy Example + Slides
 
-A TypeScript CLI for the [DeepBook Predict](https://docs.sui.io/onchain-finance/deepbook-predict/design)
-binary-options protocol on Sui testnet. No frontend, no wallet UI — just
-npm scripts that exercise the full lifecycle (deposit, mint, redeem,
-LP supply, LP withdraw) plus a pre-flight dry-run loop that surfaces
-every protocol-side check before you sign.
+A learning bundle for [DeepBook Predict](https://docs.sui.io/onchain-finance/deepbook-predict/design),
+the binary-options primitive on Sui testnet. **Not a production tool.** This
+repo holds two artifacts side by side, both aimed at someone who wants to
+go from "never heard of it" to "I see how the pieces fit" in under an hour:
+
+1. **A 13-slide technical brief** (`presentation/`) — what Predict is, why
+   it matters, and how the on-chain pieces talk to each other. Includes a
+   speaker script (`script.md`) you can read instead of watching the talk.
+2. **A TypeScript CLI** (`src/`, this `package.json`) — no frontend, no
+   wallet UI, just npm scripts that walk the full lifecycle (deposit, mint,
+   redeem, LP supply, LP withdraw) with a 5-gate pre-flight dry-run before
+   anything signs.
+
+If you're here to **understand the protocol**, start with the slides. If
+you're here to **integrate**, start with [Quickstart](#quickstart) and
+treat the slides as background reading.
 
 Pinned to the `predict-testnet-4-16` branch of `deepbookv3`.
 
----
+## Repo layout
+
+```text
+/
+├── presentation/             ← slides + speaker script (Vercel-deployable)
+│   ├── present.html          ← self-contained 6.4 MB bundle, open in any browser
+│   ├── script.md             ← speaker notes for the deck
+│   └── images/
+├── src/                      ← CLI source (TypeScript, ESM, NodeNext)
+│   ├── cli.ts                ← subcommand dispatcher for the published binary
+│   ├── scripts/              ← one entry point per command
+│   ├── ptb/                  ← PTB builders (return Transaction; do not execute)
+│   ├── lib/                  ← read helpers, oracle math, server wrappers
+│   ├── client.ts             ← SuiClient + optional keypair
+│   └── config.ts             ← zod-validated .env loader
+├── test/                     ← vitest unit tests
+├── DEEPBOOK_PREDICT_MVP_PLAN.md ← the implementation plan this CLI follows
+├── vercel.json               ← rewrites / → /presentation/present.html
+└── package.json
+```
+
+## Presentation
+
+The deck is a single self-contained HTML file — JS, CSS, fonts and images
+all base64-bundled inline. No build step, no external requests.
+
+```bash
+# View locally
+open presentation/present.html
+
+# Read the speaker script
+${PAGER:-less} presentation/script.md
+```
+
+**Deploying to Vercel.** The repo root contains a `vercel.json` that
+rewrites `/` → `/presentation/present.html`, so importing the repo into
+Vercel as a static project Just Works — no framework preset needed, no
+build command, no output directory. The whole site is one file plus a
+rewrite rule.
+
+If you want to deploy the slides on their own (without the CLI source),
+either set Vercel's "Root Directory" to `presentation/` and rename
+`present.html` → `index.html`, or fork and `git rm` the non-slides
+content.
 
 ## Quickstart
 
@@ -175,10 +229,11 @@ $ npm run --silent mint-binary -- --strike 80500 --qty 5 --direction up --execut
 
 Source layout:
 
-```
+```text
 src/
   config.ts           — zod-validated .env loader
   client.ts           — SuiClient + optional Ed25519Keypair
+  cli.ts              — subcommand dispatcher (entry for the published binary)
   lib/
     predict.ts        — read Predict shared object (incl. vault metrics + PLP supply)
     manager.ts        — read PredictManager, list positions, view balance/position via devInspect
@@ -193,7 +248,7 @@ src/
     redeem.ts         — market_key::up|down + predict::redeem
     lpSupply.ts       — split DUSDC + predict::supply + transferObjects
     lpWithdraw.ts     — split PLP + predict::withdraw + transferObjects
-  scripts/            — CLI entry points (1 per npm script)
+  scripts/            — one entry point per command (run via npm or dispatcher)
     _cli.ts           — shared helpers: parseDecimalAmount, formatDecimal,
                         resolveSender, dryRun, sign, printOutcome
     inspect.ts        — read-only dashboard
@@ -203,14 +258,8 @@ src/
     deposit.ts / withdraw.ts / mint-binary.ts / redeem.ts /
       lp-supply.ts / lp-withdraw.ts / e2e.ts
 test/                 — vitest unit tests (28 cases)
-notes/                — daily-log notes (day-01..day-06, day-08..day-16, + week-01-summary.md; day-07 rolled into the week-1 summary)
 DEEPBOOK_PREDICT_MVP_PLAN.md — the implementation plan this CLI follows
 ```
-
-The `notes/` directory is the durable knowledge artifact. Every day
-during development we recorded findings, surprises, and "tomorrow I
-start here" handoffs. Worth reading if you want the **why** behind
-any decision.
 
 ### Three scaling conventions
 
@@ -345,6 +394,55 @@ Per the plan's scope:
   estimates come back in the dry-run output.
 - No **retry logic**. Manual re-run on failure is the workflow.
 
+## Publishing the CLI
+
+The CLI is published as an npm package: **`deepbook-predict-cli`**.
+
+```bash
+# As an end user — install globally, run anywhere:
+npm install -g deepbook-predict-cli
+deepbook-predict setup
+deepbook-predict mint-binary --strike 80500 --qty 5 --direction up
+
+# Or without installing:
+npx deepbook-predict-cli setup
+```
+
+The clone-and-`npm run` workflow (above [Quickstart](#quickstart)) stays
+the recommended path if you want to read or modify the code while
+running it. The published binary is for consumers who just want to
+exercise the lifecycle on testnet without cloning anything.
+
+### Release flow
+
+The maintainer release flow, in case you're cutting a new version:
+
+```bash
+# 1. Bump version (semver — patch/minor/major)
+npm version patch
+
+# 2. Sanity check the tarball contents
+npm pack --dry-run
+
+# 3. Publish
+npm publish
+```
+
+`prepublishOnly` runs `build` + `test` before the tarball goes out, so a
+broken build can't ship by accident. The `files` whitelist in
+`package.json` ensures only `dist/`, `README.md`, `LICENSE`, and
+`.env.example` get packed — source, tests, presentation, and notes stay
+local.
+
+### What's NOT in the npm tarball
+
+- **The presentation** (`presentation/`) — slides are deployed
+  separately to Vercel.
+- **TypeScript source** (`src/`) — only the compiled `dist/` ships. If
+  consumers want to read the source, they read the GitHub repo.
+- **Tests** (`test/`) — dev-only.
+- **The plan doc** (`DEEPBOOK_PREDICT_MVP_PLAN.md`) — dev-only.
+
 ## Definition of Done
 
 From the plan:
@@ -359,4 +457,10 @@ From the plan:
 
 ## License
 
-(none yet — set as appropriate before publishing)
+None yet. **Must be set before the npm publish in
+[Future](#future-publishing-the-cli) goes out** — npm tarballs without a
+`LICENSE` are ambiguous about reuse rights, and the slides will hit
+Vercel before the CLI does, so anyone scraping the public deploy needs
+clear terms. MIT is the obvious default for a toy/teaching example;
+revisit if anything in here turns out to be load-bearing for production
+use.

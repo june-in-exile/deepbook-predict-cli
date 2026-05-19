@@ -277,7 +277,7 @@ const roundStrike = (priceE9: bigint): bigint => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run e2e
+  deepbook-predict e2e
 
   Orchestrates the full lifecycle:
     preflight → pick oracle → deposit → mint UP+DOWN+RANGE → verify positions
@@ -289,7 +289,7 @@ const printHelp = (): void => {
   Requires:
     - PRIVATE_KEY in .env (signing)
     - DUSDC in wallet (\$25 minimum)
-    - PredictManager created (run 'npm run setup' first)
+    - PredictManager created (run 'deepbook-predict setup' first)
 `,
   );
 };

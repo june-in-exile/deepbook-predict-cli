@@ -47,7 +47,7 @@ const main = async (): Promise<void> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  npm run deposit -- --amount <human> [--quote <symbol|type>] [--sender <addr>] [--execute]
+  deepbook-predict deposit --amount <human> [--quote <symbol|type>] [--sender <addr>] [--execute]
 
 Defaults:
   coin type: auto-resolved from chain accepted_quotes (override with --quote)
@@ -55,8 +55,8 @@ Defaults:
   sender:    keypair-derived if PRIVATE_KEY set, else manager.owner from chain
 
 Examples:
-  npm run deposit -- --amount 100             # dry-run only (devInspect)
-  npm run deposit -- --amount 100 --execute   # sign + submit
+  deepbook-predict deposit --amount 100             # dry-run only (devInspect)
+  deepbook-predict deposit --amount 100 --execute   # sign + submit
 `,
   );
 };

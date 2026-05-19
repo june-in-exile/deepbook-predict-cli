@@ -1,9 +1,27 @@
 {
   "name": "deepbook-predict-cli",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
-  "description": "Read/write CLI for the DeepBook Predict protocol on Sui testnet.",
+  "description": "Toy CLI + slides for learning the DeepBook Predict protocol on Sui testnet.",
+  "bin": {
+    "deepbook-predict": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ],
+  "license": "MIT",
+  "author": "Chen Chi June <df41022@gmail.com>",
+  "keywords": [
+    "sui",
+    "deepbook",
+    "predict",
+    "options",
+    "cli",
+    "testnet"
+  ],
   "scripts": {
     "setup": "tsx src/scripts/setup.ts",
     "inspect": "tsx src/scripts/inspect.ts",
@@ -20,12 +38,13 @@
     "e2e": "tsx src/scripts/e2e.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
     "@mysten/sui": "^1.21.2",
     "dotenv": "^16.4.5",
-    "react-doctor": "^0.1.6",
     "zod": "^3.23.8"
   },
   "devDependencies": {
