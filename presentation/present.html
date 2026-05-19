@@ -4069,9 +4069,9 @@
   /* ---------- slide 06: architecture diagram ---------- */
   .arch{display:flex;flex-direction:column;gap:1.1rem;flex:1;min-height:0}
   .arch-globals{
-    position:absolute;top:6%;left:50%;transform:translateX(-50%);
-    z-index:5;pointer-events:none;
-    display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.45rem;flex-wrap:wrap;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    gap:.45rem;flex-wrap:wrap;
+    width:100%;
   }
   .arch-globals-group{
     display:inline-flex;align-items:center;gap:.75rem;
@@ -4101,7 +4101,7 @@
     flex:1;min-height:0;position:relative;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:.85rem;
-    margin-top:.5rem;padding:.2rem 0;
+    margin-top:.2rem;padding:.2rem 0;
   }
   .arch-svg{width:100%;height:100%;max-height:560px;display:block;overflow:visible}
   .arch-svg text{user-select:none}
@@ -4218,6 +4218,29 @@
   }
   .arch-info-bottom .arch-info-label{flex:0 0 auto;white-space:nowrap}
   .arch-info-bottom .arch-info-text{flex:1;min-width:0;font-size:clamp(.95rem,1vw,1.05rem)}
+
+  /* Narrow viewports: collapse 3-column arch row to a stacked layout so the
+     SVG keeps a usable width and the asides drop below it. */
+  @media(max-width:1280px){
+    .arch-row{
+      flex-direction:column;align-items:stretch;
+      gap:clamp(.6rem,1.2vw,1.1rem);
+    }
+    .arch-side-left,
+    .arch-side-right{
+      flex:0 0 auto;align-self:auto;
+    }
+    .arch-row .arch-svg{
+      width:100%;height:auto;max-height:none;
+    }
+    .arch-flow{
+      flex-direction:row;flex-wrap:wrap;align-items:center;gap:.6rem 1.1rem;
+    }
+    .arch-flow-steps{
+      flex-direction:row;flex-wrap:wrap;gap:.35rem 1rem;width:auto;
+    }
+    .arch-flow-note{margin-top:0;flex:1 1 100%}
+  }
 
   /* ---------- payoff chart slide ---------- */
   .payoff-grid{
@@ -4944,15 +4967,15 @@
   <section class="slide" data-stages="3">
     <h2 class="reveal">核心架構</h2>
     <div class="reveal arch" style="animation-delay:.15s">
+      <div class="arch-globals">
+        <div class="arch-globals-group">
+          <span class="arch-globals-label">Predict</span>
+          <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
+          <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
+        </div>
+      </div>
       <div class="arch-canvas">
         <div class="arch-row">
-          <div class="arch-globals">
-            <div class="arch-globals-group">
-              <span class="arch-globals-label">Predict</span>
-              <span class="arch-pill"><b>ProtocolConfig</b><span>policy · pause · fees</span></span>
-              <span class="arch-pill"><b>Registry</b><span>索引 · 父物件</span></span>
-            </div>
-          </div>
           <aside class="arch-flow arch-side-left" data-stage="1">
             <span class="arch-flow-label">USER FLOW · BINARY MINT</span>
             <ol class="arch-flow-steps">
@@ -5114,7 +5137,7 @@
     <div class="arch-info arch-info-oracle arch-info-bottom" data-stage="2">
       <span class="arch-info-label">ORACLE · BLOCK SCHOLES</span>
       <p class="arch-info-text">
-        FCA 監管的<b>機構級選擇權定價預言機</b>提供即時 IV surface,鏈上 <b>OracleSVI</b> 物件推導每個 strike / 方向的 ask / bid。<br><span class="dim"> · ask 上限 $0.99 · min $0.01 · strike 須落在 oracle tick grid 上(BTC tick = $1)</span>
+        FCA 監管的<b>機構級選擇權定價預言機</b>提供即時 IV surface,鏈上 <b>OracleSVI</b> 物件推導每個 strike / 方向的 ask / bid。<br> · ask 上限 $0.99 · min $0.01 · strike 須落在 oracle tick grid 上(BTC tick = $1)
       </p>
     </div>
   </section>
