@@ -49,7 +49,7 @@ const OracleEntrySchema = z.object({
   expiry: z.number(),
   min_strike: z.number(),
   tick_size: z.number(),
-  status: z.enum(['active', 'inactive', 'pending_settlement', 'settled']),
+  status: z.enum(['created', 'active', 'inactive', 'pending_settlement', 'settled']),
   activated_at: z.number().nullable(),
   settlement_price: z.number().nullable(),
   settled_at: z.number().nullable(),

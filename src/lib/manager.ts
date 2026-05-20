@@ -1,6 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 
 import type { Ctx } from '../client.js';
+import { listManagers } from './server.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from './view.js';
 
 export type Position = Readonly<{
@@ -51,30 +52,17 @@ export const getManager = async (ctx: Ctx, id: string): Promise<ManagerState> =>
 };
 
 /**
- * Lists all PredictManager object ids owned by `owner`. Used by the
- * resolver to auto-pick the user's manager without needing it in .env.
+ * Lists all PredictManager ids whose Move-level `owner` field equals `owner`.
+ * Used by the resolver to auto-pick the user's manager without needing it in
+ * .env. Hits the indexer's /managers?owner=<addr> endpoint — PredictManager
+ * is a Sui-shared object so `getOwnedObjects` cannot be used.
  */
 export const findOwnedManagers = async (
   ctx: Ctx,
   owner: string,
 ): Promise<readonly string[]> => {
-  const structType = `${ctx.config.PACKAGE_ID}::predict_manager::PredictManager`;
-  const ids: string[] = [];
-  let cursor: string | null | undefined = undefined;
-  do {
-    const page = await ctx.client.getOwnedObjects({
-      owner,
-      filter: { StructType: structType },
-      options: { showType: false },
-      cursor: cursor ?? null,
-    });
-    for (const item of page.data) {
-      const id = item.data?.objectId;
-      if (id) ids.push(id);
-    }
-    cursor = page.hasNextPage ? page.nextCursor : undefined;
-  } while (cursor);
-  return Object.freeze(ids);
+  const entries = await listManagers(ctx, owner);
+  return Object.freeze(entries.map((e) => e.manager_id));
 };
 
 export const listBinaryPositions = async (
