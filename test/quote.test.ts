@@ -13,7 +13,8 @@ const makeCtx = (stubs: {
   coinMetadata: Record<string, { symbol: string; decimals: number } | null>;
 }): Ctx =>
   ({
-    config: { PREDICT_OBJECT_ID: '0xpredict' },
+    config: {},
+    predictObjectId: '0xpredict',
     client: {
       getObject: async () => ({
         data: {

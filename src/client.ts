@@ -4,16 +4,24 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 
 import type { Config } from './config.js';
 import { loadConfig } from './config.js';
+import { resolvePredictObjectId } from './lib/server.js';
 
 export type Ctx = Readonly<{
   config: Config;
   client: SuiClient;
+  /**
+   * The shared Predict object id, auto-resolved once from the indexer's
+   * `/oracles` feed at startup. Constant across every script invocation
+   * because the indexer reports exactly one predict per deployment.
+   */
+  predictObjectId: string;
 }>;
 
-export const createContext = (): Ctx => {
+export const createContext = async (): Promise<Ctx> => {
   const config = loadConfig();
   const client = new SuiClient({ url: config.RPC_URL });
-  return Object.freeze({ config, client });
+  const predictObjectId = await resolvePredictObjectId(config.SERVER_URL);
+  return Object.freeze({ config, client, predictObjectId });
 };
 
 /**

@@ -21,7 +21,7 @@ export const resolveQuote = async (
   const accepted = await fetchAcceptedQuotes(ctx);
   if (accepted.length === 0) {
     throw new Error(
-      `Predict object ${ctx.config.PREDICT_OBJECT_ID} has no accepted quotes — protocol misconfigured.`,
+      `Predict object ${ctx.predictObjectId} has no accepted quotes — protocol misconfigured.`,
     );
   }
 
@@ -53,13 +53,13 @@ export const resolveQuote = async (
 
 const fetchAcceptedQuotes = async (ctx: Ctx): Promise<readonly string[]> => {
   const res = await ctx.client.getObject({
-    id: ctx.config.PREDICT_OBJECT_ID,
+    id: ctx.predictObjectId,
     options: { showContent: true },
   });
   const content = (res as { data?: { content?: { dataType?: string; fields?: unknown } } })?.data
     ?.content;
   if (!content || content.dataType !== 'moveObject') {
-    throw new Error(`Predict object ${ctx.config.PREDICT_OBJECT_ID} has no Move content`);
+    throw new Error(`Predict object ${ctx.predictObjectId} has no Move content`);
   }
   const fields = content.fields as Record<string, unknown>;
   const treasury = nested(fields.treasury_config);

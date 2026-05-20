@@ -10,7 +10,7 @@ import { buildMintBinaryTx } from '../ptb/mintBinary.js';
 import { buildMintRangeTx } from '../ptb/mintRange.js';
 import { buildRedeemTx } from '../ptb/redeem.js';
 import { buildRedeemRangeTx } from '../ptb/redeemRange.js';
-import { formatDecimal, hasFlag, readFlag, resolveSender, sign } from './_cli.js';
+import { formatDecimal, hasFlag, readFlag, resolveManagerId, resolveSender, sign } from './_cli.js';
 
 const E2E_PARAMS = Object.freeze({
   depositRaw: 25_000_000n,        // $25 — funds binary UP + DOWN + range
@@ -29,16 +29,17 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
+  const managerId = await resolveManagerId(ctx, sender, argv);
   const results: StepResult[] = [];
 
-  process.stdout.write(`\n=== e2e lifecycle ===\n  sender: ${sender}\n  quote:  ${quote.symbol}\n\n`);
+  process.stdout.write(`\n=== e2e lifecycle ===\n  sender: ${sender}\n  quote:  ${quote.symbol}\n  manager: ${managerId}\n\n`);
 
   // 1. Preflight — must be ready
   process.stdout.write(`[1/7] preflight (manager exists, has owner, wallet has ${quote.symbol})…\n`);
-  const manager = await getManager(ctx);
+  const manager = await getManager(ctx, managerId);
   if (manager.owner.toLowerCase() !== sender.toLowerCase()) {
     fail(results, '1. preflight', `manager owner ${manager.owner} != sender ${sender}`);
     return finish(results);
@@ -86,6 +87,7 @@ const main = async (): Promise<void> => {
     const tx = await buildDepositTx(ctx, {
       amount: E2E_PARAMS.depositRaw,
       sender,
+      managerId,
       coinType: quote.coinType,
     });
     tx.setSender(sender);
@@ -96,6 +98,7 @@ const main = async (): Promise<void> => {
   // 4. Mint UP and DOWN
   await runStep(ctx, results, '4a. mint UP', async () => {
     const tx = buildMintBinaryTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       strike,
@@ -110,6 +113,7 @@ const main = async (): Promise<void> => {
 
   await runStep(ctx, results, '4b. mint DOWN', async () => {
     const tx = buildMintBinaryTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       strike,
@@ -124,6 +128,7 @@ const main = async (): Promise<void> => {
 
   await runStep(ctx, results, '4c. mint range', async () => {
     const tx = buildMintRangeTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       lower,
@@ -157,6 +162,7 @@ const main = async (): Promise<void> => {
   // 6. Redeem all three (early exit at live SVI bid)
   await runStep(ctx, results, '6a. redeem UP', async () => {
     const tx = buildRedeemTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       strike,
@@ -171,6 +177,7 @@ const main = async (): Promise<void> => {
 
   await runStep(ctx, results, '6b. redeem DOWN', async () => {
     const tx = buildRedeemTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       strike,
@@ -185,6 +192,7 @@ const main = async (): Promise<void> => {
 
   await runStep(ctx, results, '6c. redeem range', async () => {
     const tx = buildRedeemRangeTx(ctx, {
+      managerId,
       oracleId: oracle.id,
       expiryMs: oracle.expiryMs,
       lower,

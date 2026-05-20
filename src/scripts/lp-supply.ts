@@ -27,7 +27,7 @@ const main = async (): Promise<void> => {
   const human = readFlag(argv, '--amount');
   if (!human) throw new Error('missing --amount; example: --amount 100');
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const amount = parseDecimalAmount(human, Number(quote.decimals));
 

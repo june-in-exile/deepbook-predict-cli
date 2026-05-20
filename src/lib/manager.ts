@@ -27,8 +27,7 @@ export type ManagerState = Readonly<{
   rangePositionsTableId: string;
 }>;
 
-export const getManager = async (ctx: Ctx): Promise<ManagerState> => {
-  const id = ctx.config.MANAGER_OBJECT_ID;
+export const getManager = async (ctx: Ctx, id: string): Promise<ManagerState> => {
   const res = await ctx.client.getObject({
     id,
     options: { showContent: true, showType: true },
@@ -49,6 +48,33 @@ export const getManager = async (ctx: Ctx): Promise<ManagerState> => {
     positionsTableId: extractId(inner(fields.positions).id) ?? '',
     rangePositionsTableId: extractId(inner(fields.range_positions).id) ?? '',
   });
+};
+
+/**
+ * Lists all PredictManager object ids owned by `owner`. Used by the
+ * resolver to auto-pick the user's manager without needing it in .env.
+ */
+export const findOwnedManagers = async (
+  ctx: Ctx,
+  owner: string,
+): Promise<readonly string[]> => {
+  const structType = `${ctx.config.PACKAGE_ID}::predict_manager::PredictManager`;
+  const ids: string[] = [];
+  let cursor: string | null | undefined = undefined;
+  do {
+    const page = await ctx.client.getOwnedObjects({
+      owner,
+      filter: { StructType: structType },
+      options: { showType: false },
+      cursor: cursor ?? null,
+    });
+    for (const item of page.data) {
+      const id = item.data?.objectId;
+      if (id) ids.push(id);
+    }
+    cursor = page.hasNextPage ? page.nextCursor : undefined;
+  } while (cursor);
+  return Object.freeze(ids);
 };
 
 export const listBinaryPositions = async (

@@ -7,6 +7,8 @@ export type WithdrawArgs = Readonly<{
   amount: bigint;
   /** Address that will sign and receive the withdrawn coins. */
   recipient: string;
+  /** Target PredictManager id (auto-resolved from sender's owned objects). */
+  managerId: string;
   /** Coin type to withdraw. Resolved from accepted_quotes via resolveQuote(). */
   coinType: string;
 }>;
@@ -28,7 +30,7 @@ export const buildWithdrawTx = (ctx: Ctx, args: WithdrawArgs): Transaction => {
   const [coin] = tx.moveCall({
     target: `${ctx.config.PACKAGE_ID}::predict_manager::withdraw`,
     typeArguments: [coinType],
-    arguments: [tx.object(ctx.config.MANAGER_OBJECT_ID), tx.pure.u64(args.amount)],
+    arguments: [tx.object(args.managerId), tx.pure.u64(args.amount)],
   });
   if (!coin) throw new Error('predict_manager::withdraw produced no Coin result');
   tx.transferObjects([coin], tx.pure.address(args.recipient));

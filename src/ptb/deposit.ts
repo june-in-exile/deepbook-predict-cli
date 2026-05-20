@@ -8,6 +8,8 @@ export type DepositArgs = Readonly<{
   amount: bigint;
   /** Address that will sign the transaction; must own the source coins. */
   sender: string;
+  /** Target PredictManager id (auto-resolved from sender's owned objects). */
+  managerId: string;
   /** Coin type to deposit. Resolved from accepted_quotes via resolveQuote(). */
   coinType: string;
 }>;
@@ -26,7 +28,7 @@ export const buildDepositTx = async (ctx: Ctx, args: DepositArgs): Promise<Trans
   tx.moveCall({
     target: `${ctx.config.PACKAGE_ID}::predict_manager::deposit`,
     typeArguments: [coinType],
-    arguments: [tx.object(ctx.config.MANAGER_OBJECT_ID), depositCoin],
+    arguments: [tx.object(args.managerId), depositCoin],
   });
 
   return tx;

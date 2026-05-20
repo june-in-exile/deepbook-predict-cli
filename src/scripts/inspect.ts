@@ -1,5 +1,5 @@
-import { createContext } from '../client.js';
-import { formatDecimal, readFlag } from './_cli.js';
+import { createContext, type Ctx } from '../client.js';
+import { formatDecimal, readFlag, resolveManagerId, resolveSender } from './_cli.js';
 import {
   getManager,
   getQuoteBalance,
@@ -20,10 +20,12 @@ const wantsJson = process.argv.includes('--json');
 
 const main = async (): Promise<void> => {
   const argv = process.argv.slice(2);
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
+  const sender = await resolveSender(ctx, argv);
+  const managerId = await resolveManagerId(ctx, sender, argv);
   const predict = await getPredict(ctx);
-  const manager = await getManager(ctx);
+  const manager = await getManager(ctx, managerId);
   const [quoteBalance, binaryPositions, rangePositions, oracle, walletQuote, walletPlp, walletSui] = await Promise.all([
     getQuoteBalance(ctx, manager, quote.coinType),
     listBinaryPositions(ctx, manager),
@@ -56,12 +58,12 @@ const main = async (): Promise<void> => {
   renderWallet(manager.owner, walletQuote, walletPlp, walletSui, quote);
 };
 
-const walletCoinBalance = async (ctx: ReturnType<typeof createContext>, owner: string, coinType: string): Promise<bigint> => {
+const walletCoinBalance = async (ctx: Ctx, owner: string, coinType: string): Promise<bigint> => {
   const res = await ctx.client.getBalance({ owner, coinType });
   return BigInt(res.totalBalance);
 };
 
-const plpCoinType = (ctx: ReturnType<typeof createContext>): string => `${ctx.config.PACKAGE_ID}::plp::PLP`;
+const plpCoinType = (ctx: Ctx): string => `${ctx.config.PACKAGE_ID}::plp::PLP`;
 
 const renderWallet = (owner: string, quoteAmt: bigint, plp: bigint, sui: bigint, quote: Quote): void => {
   section('Wallet (manager owner)', [

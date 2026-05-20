@@ -22,7 +22,7 @@ export const buildLpWithdrawTx = async (ctx: Ctx, args: LpWithdrawArgs): Promise
     target: `${ctx.config.PACKAGE_ID}::predict::withdraw`,
     typeArguments: [quoteType],
     arguments: [
-      tx.object(ctx.config.PREDICT_OBJECT_ID),
+      tx.object(ctx.predictObjectId),
       burnCoin,
       tx.object('0x6'),
     ],

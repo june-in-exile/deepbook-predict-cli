@@ -18,7 +18,7 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
   const oracle = await resolveOracle(ctx, readFlag(argv, '--oracle'));

@@ -3,6 +3,8 @@ import { Transaction } from '@mysten/sui/transactions';
 import type { Ctx } from '../client.js';
 
 export type RedeemRangeArgs = Readonly<{
+  /** Target PredictManager id (auto-resolved from sender's owned objects). */
+  managerId: string;
   oracleId: string;
   expiryMs: bigint;
   lower: bigint;
@@ -48,8 +50,8 @@ export const buildRedeemRangeTx = (ctx: Ctx, args: RedeemRangeArgs): Transaction
     target: `${pkg}::predict::redeem_range`,
     typeArguments: [args.coinType],
     arguments: [
-      tx.object(ctx.config.PREDICT_OBJECT_ID),
-      tx.object(ctx.config.MANAGER_OBJECT_ID),
+      tx.object(ctx.predictObjectId),
+      tx.object(args.managerId),
       tx.object(args.oracleId),
       key,
       tx.pure.u64(args.quantity),
