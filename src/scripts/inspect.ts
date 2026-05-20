@@ -108,7 +108,7 @@ const renderManager = (
       'PredictManager — binary positions',
       bin.map((p, i) => [
         `#${i + 1}`,
-        `${p.isUp ? 'UP  ' : 'DOWN'} strike=${formatDecimal(p.strike, 9n)} expiry=${p.expiryMs} qty=${p.quantity}`,
+        `${p.isUp ? 'UP  ' : 'DOWN'} strike=${formatDecimal(p.strike, 9n)} expiry=${p.expiryMs} (${new Date(Number(p.expiryMs)).toISOString()}) qty=${p.quantity}`,
       ]),
     );
   }
@@ -117,7 +117,7 @@ const renderManager = (
       'PredictManager — range positions',
       rng.map((p, i) => [
         `#${i + 1}`,
-        `(${formatDecimal(p.lowerStrike, 9n)} .. ${formatDecimal(p.higherStrike, 9n)}] expiry=${p.expiryMs} qty=${p.quantity}`,
+        `(${formatDecimal(p.lowerStrike, 9n)} .. ${formatDecimal(p.higherStrike, 9n)}] expiry=${p.expiryMs} (${new Date(Number(p.expiryMs)).toISOString()}) qty=${p.quantity}`,
       ]),
     );
   }

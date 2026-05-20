@@ -49,15 +49,13 @@ const formatRow = (o: OracleEntry, now: number): readonly [string, string, strin
   const diffHours = (o.expiry - now) / 1000 / 3600;
   const diff = diffHours >= 0 ? `${diffHours.toFixed(1)}h` : `${(-diffHours).toFixed(1)}h ago`;
   return [
-    shortenId(o.oracle_id),
+    o.oracle_id,
     o.underlying_asset,
     new Date(o.expiry).toISOString().replace('.000Z', 'Z'),
     diff,
     o.settlement_price !== null ? 'settled' : o.status,
   ];
 };
-
-const shortenId = (id: string): string => `${id.slice(0, 10)}…${id.slice(-6)}`;
 
 const computeWidths = (rows: ReadonlyArray<readonly string[]>): readonly number[] => {
   const headers = ['oracle_id', 'asset', 'expiry (UTC)', 'in', 'status'];

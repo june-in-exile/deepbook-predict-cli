@@ -21,9 +21,11 @@ const main = async (): Promise<void> => {
   const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
-  const oracle = await resolveOracle(ctx, readFlag(argv, '--oracle'));
-  if (oracle.lifecycle !== Lifecycle.Active) {
-    throw new Error(`oracle ${oracle.id} is ${oracle.lifecycle}; preview requires Active.`);
+  const oracles = await resolveOracles(ctx, argv);
+  for (const o of oracles) {
+    if (o.lifecycle !== Lifecycle.Active) {
+      throw new Error(`oracle ${o.id} is ${o.lifecycle}; preview requires Active.`);
+    }
   }
 
   const strikes = parseStrikes(argv);
@@ -33,27 +35,44 @@ const main = async (): Promise<void> => {
   }
   const qty = parseDecimalAmount(readFlag(argv, '--qty') ?? '1', Number(quote.decimals));
 
-  printHeader(oracle, qty, quote);
+  for (const oracle of oracles) {
+    printHeader(oracle, qty, quote);
 
-  if (strikes.length > 0) {
-    process.stdout.write(`\n=== binary preview ===\n`);
-    process.stdout.write(
-      `\nstrike      |   UP ask   UP bid  |  DOWN ask  DOWN bid  |  ask sum   spread (1-sum)\n`,
-    );
-    process.stdout.write(`${'-'.repeat(85)}\n`);
-    for (const strike of strikes) {
-      await previewBinaryRow(ctx, sender, oracle, strike, qty);
+    if (strikes.length > 0) {
+      process.stdout.write(`\n=== binary preview ===\n`);
+      process.stdout.write(
+        `\nstrike      |   UP ask   UP bid  |  DOWN ask  DOWN bid  |  ask sum   spread (1-sum)\n`,
+      );
+      process.stdout.write(`${'-'.repeat(85)}\n`);
+      for (const strike of strikes) {
+        await previewBinaryRow(ctx, sender, oracle, strike, qty);
+      }
+    }
+
+    if (ranges.length > 0) {
+      process.stdout.write(`\n=== range preview ===\n`);
+      process.stdout.write(`\nlower       higher      width   |    ask         bid\n`);
+      process.stdout.write(`${'-'.repeat(60)}\n`);
+      for (const r of ranges) {
+        await previewRangeRow(ctx, sender, oracle, r, qty);
+      }
     }
   }
+};
 
-  if (ranges.length > 0) {
-    process.stdout.write(`\n=== range preview ===\n`);
-    process.stdout.write(`\nlower       higher      width   |    ask         bid\n`);
-    process.stdout.write(`${'-'.repeat(60)}\n`);
-    for (const r of ranges) {
-      await previewRangeRow(ctx, sender, oracle, r, qty);
+const resolveOracles = async (
+  ctx: Ctx,
+  argv: ReadonlyArray<string>,
+): Promise<readonly OracleState[]> => {
+  const multi = readFlag(argv, '--oracles');
+  if (multi) {
+    const ids = multi.split(',').map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      throw new Error('--oracles is empty; pass at least one oracle id, e.g. --oracles 0xabc,0xdef');
     }
+    return Promise.all(ids.map((id) => resolveOracle(ctx, id)));
   }
+  return [await resolveOracle(ctx, readFlag(argv, '--oracle'))];
 };
 
 const previewBinaryRow = async (
@@ -195,7 +214,7 @@ const printHelp = (): void => {
   process.stdout.write(
     `Usage:
   deepbook-predict preview -- [--strikes <K1,K2,...>] [--ranges <L1-H1,L2-H2,...>]
-                     [--qty <human>] [--oracle <id>]
+                     [--qty <human>] [--oracle <id> | --oracles <id1,id2,...>]
 
   At least one of --strikes / --ranges is required. Both can be supplied;
   outputs two \`===\`-separated blocks (binary first, then range).
@@ -206,14 +225,18 @@ const printHelp = (): void => {
 
 Defaults:
   --qty 1
-  --oracle auto-picked from indexer's active oracle (next to settle).
-           Fails fast if the indexer is unreachable or has no active oracle —
-           pass --oracle <id> to override.
+  --oracle  auto-picked from indexer's active oracle (next to settle).
+            Fails fast if the indexer is unreachable or has no active oracle —
+            pass --oracle <id> to override.
+  --oracles compare multiple oracles in one run; emits one preview block per
+            oracle id. Takes precedence over --oracle. All ids must be Active.
+            Use \`npm run markets --all\` to list candidate oracle ids.
 
 Examples:
   deepbook-predict preview --strikes 79000,80000,80500,81000,82000
   deepbook-predict preview --ranges 79500-80500,80500-81500
   deepbook-predict preview --strikes 80000,80500 --ranges 79500-80500,80500-81500
+  deepbook-predict preview --strikes 80000 --oracles 0xabc...,0xdef...
 `,
   );
 };
