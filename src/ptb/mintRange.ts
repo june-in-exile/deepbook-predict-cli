@@ -3,6 +3,8 @@ import { Transaction } from '@mysten/sui/transactions';
 import type { Ctx } from '../client.js';
 
 export type MintRangeArgs = Readonly<{
+  /** Target PredictManager id (auto-resolved from sender's owned objects). */
+  managerId: string;
   /** ID of the OracleSVI shared object being traded against. */
   oracleId: string;
   /** Expiry timestamp in ms. Must equal the oracle's expiry field — the
@@ -51,8 +53,8 @@ export const buildMintRangeTx = (ctx: Ctx, args: MintRangeArgs): Transaction => 
     target: `${pkg}::predict::mint_range`,
     typeArguments: [args.coinType],
     arguments: [
-      tx.object(ctx.config.PREDICT_OBJECT_ID),
-      tx.object(ctx.config.MANAGER_OBJECT_ID),
+      tx.object(ctx.predictObjectId),
+      tx.object(args.managerId),
       tx.object(args.oracleId),
       key,
       tx.pure.u64(args.quantity),
@@ -89,7 +91,7 @@ export const buildRangeTradeAmountsPreviewTx = (
   tx.moveCall({
     target: `${pkg}::predict::get_range_trade_amounts`,
     arguments: [
-      tx.object(ctx.config.PREDICT_OBJECT_ID),
+      tx.object(ctx.predictObjectId),
       tx.object(args.oracleId),
       key,
       tx.pure.u64(args.quantity),

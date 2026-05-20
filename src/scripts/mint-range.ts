@@ -18,6 +18,7 @@ import {
   parseDecimalAmount,
   printOutcome,
   readFlag,
+  resolveManagerId,
   resolveSender,
   sign,
 } from './_cli.js';
@@ -31,18 +32,20 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const args = parseArgs(argv, quote);
   const sender = await resolveSender(ctx, argv);
+  const managerId = await resolveManagerId(ctx, sender, argv);
 
   const [manager, oracle] = await Promise.all([
-    getManager(ctx),
+    getManager(ctx, managerId),
     resolveOracle(ctx, args.oracleId),
   ]);
   assertOracleTradable(oracle);
 
   const mintArgs: MintRangeArgs = {
+    managerId,
     oracleId: oracle.id,
     expiryMs: oracle.expiryMs,
     lower: args.lower,

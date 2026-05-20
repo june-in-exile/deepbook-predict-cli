@@ -1,8 +1,11 @@
+import { createInterface } from 'node:readline/promises';
+import { stdin, stdout } from 'node:process';
+
 import type { Transaction } from '@mysten/sui/transactions';
 
 import type { Ctx } from '../client.js';
 import { requireKeypair } from '../client.js';
-import { getManager } from '../lib/manager.js';
+import { findOwnedManagers } from '../lib/manager.js';
 
 export type Argv = ReadonlyArray<string>;
 
@@ -48,7 +51,9 @@ const insertThousands = (s: string): string => s.replace(/\B(?=(\d{3})+(?!\d))/g
  * Resolve the sender address using, in order:
  *   1. --sender CLI flag
  *   2. PRIVATE_KEY in .env (derived address)
- *   3. The on-chain manager's recorded owner
+ *
+ * Throws when neither is present — the manager id is auto-resolved from
+ * the sender's owned objects, so we need the sender first.
  */
 export const resolveSender = async (ctx: Ctx, argv: Argv): Promise<string> => {
   const flag = readFlag(argv, '--sender');
@@ -56,8 +61,64 @@ export const resolveSender = async (ctx: Ctx, argv: Argv): Promise<string> => {
   if (ctx.config.PRIVATE_KEY) {
     return requireKeypair(ctx.config).getPublicKey().toSuiAddress();
   }
-  const manager = await getManager(ctx);
-  return manager.owner;
+  throw new Error(
+    'no sender available — set PRIVATE_KEY in .env (sui keytool export) or pass --sender <addr>.',
+  );
+};
+
+/**
+ * Resolve the PredictManager id, in order:
+ *   1. --manager <id> CLI flag (explicit override)
+ *   2. The single PredictManager owned by `sender`
+ *   3. Interactive prompt when sender owns multiple
+ *
+ * Non-TTY callers with multiple managers must pass --manager explicitly;
+ * we refuse to silently pick one. Callers with zero managers get pointed
+ * at `setup --create-manager`.
+ */
+export const resolveManagerId = async (
+  ctx: Ctx,
+  sender: string,
+  argv: Argv,
+): Promise<string> => {
+  const flag = readFlag(argv, '--manager');
+  if (flag) return flag;
+
+  const ids = await findOwnedManagers(ctx, sender);
+  if (ids.length === 0) {
+    throw new Error(
+      `no PredictManager owned by ${sender}. Run \`deepbook-predict setup --create-manager\` first.`,
+    );
+  }
+  const [only] = ids;
+  if (ids.length === 1 && only) return only;
+
+  if (!stdin.isTTY) {
+    throw new Error(
+      `sender ${sender} owns ${ids.length} PredictManagers; pass --manager <id> to pick one explicitly.\n` +
+        ids.map((id) => `  - ${id}`).join('\n'),
+    );
+  }
+  return pickManagerInteractively(ids);
+};
+
+const pickManagerInteractively = async (ids: readonly string[]): Promise<string> => {
+  process.stdout.write(`\n  Sender owns ${ids.length} PredictManagers. Pick one:\n`);
+  ids.forEach((id, i) => process.stdout.write(`    [${i + 1}] ${id}\n`));
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    while (true) {
+      const answer = (await rl.question(`  Select [1-${ids.length}]: `)).trim();
+      const n = Number(answer);
+      if (Number.isInteger(n) && n >= 1 && n <= ids.length) {
+        const picked = ids[n - 1];
+        if (picked) return picked;
+      }
+      process.stdout.write(`  invalid selection "${answer}"; expected an integer in [1, ${ids.length}].\n`);
+    }
+  } finally {
+    rl.close();
+  }
 };
 
 export type ExecuteOutcome =

@@ -11,9 +11,6 @@ const ConfigSchema = z.object({
   RPC_URL: z.string().url(),
   SERVER_URL: z.string().url(),
   PACKAGE_ID: objectId('PACKAGE_ID'),
-  PREDICT_OBJECT_ID: objectId('PREDICT_OBJECT_ID'),
-  PREDICT_REGISTRY_ID: objectId('PREDICT_REGISTRY_ID'),
-  MANAGER_OBJECT_ID: objectId('MANAGER_OBJECT_ID'),
   PRIVATE_KEY: z
     .string()
     .regex(SUI_PRIVKEY, 'PRIVATE_KEY must be in suiprivkey1… form (sui keytool export)')
@@ -33,9 +30,6 @@ const pickEnv = (): Record<string, string | undefined> => ({
   RPC_URL: process.env.RPC_URL,
   SERVER_URL: process.env.SERVER_URL,
   PACKAGE_ID: process.env.PACKAGE_ID,
-  PREDICT_OBJECT_ID: process.env.PREDICT_OBJECT_ID,
-  PREDICT_REGISTRY_ID: process.env.PREDICT_REGISTRY_ID,
-  MANAGER_OBJECT_ID: process.env.MANAGER_OBJECT_ID,
   PRIVATE_KEY: process.env.PRIVATE_KEY || undefined,
 });
 

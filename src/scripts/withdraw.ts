@@ -7,6 +7,7 @@ import {
   parseDecimalAmount,
   printOutcome,
   readFlag,
+  resolveManagerId,
   resolveSender,
   sign,
 } from './_cli.js';
@@ -20,19 +21,20 @@ const main = async (): Promise<void> => {
   const human = readFlag(argv, '--amount');
   if (!human) throw new Error('missing --amount; example: --amount 50');
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const amount = parseDecimalAmount(human, Number(quote.decimals));
 
   const sender = await resolveSender(ctx, argv);
+  const managerId = await resolveManagerId(ctx, sender, argv);
   const recipient = readFlag(argv, '--recipient') ?? sender;
-  const tx = buildWithdrawTx(ctx, { amount, recipient, coinType: quote.coinType });
+  const tx = buildWithdrawTx(ctx, { amount, recipient, managerId, coinType: quote.coinType });
   tx.setSender(sender);
 
   process.stdout.write(`withdraw ${human} ${quote.symbol} (= ${amount} raw)\n`);
   process.stdout.write(`  sender:    ${sender}\n`);
   process.stdout.write(`  recipient: ${recipient}\n`);
-  process.stdout.write(`  manager:   ${ctx.config.MANAGER_OBJECT_ID}\n`);
+  process.stdout.write(`  manager:   ${managerId}\n`);
 
   const dry = await dryRun(ctx, tx, sender);
   printOutcome(dry);
@@ -49,12 +51,12 @@ const main = async (): Promise<void> => {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage:
-  deepbook-predict withdraw --amount <human> [--quote <symbol|type>] [--recipient <addr>] [--execute]
+  deepbook-predict withdraw --amount <human> [--quote <symbol|type>] [--recipient <addr>] [--manager <id>] [--execute]
 
 Defaults:
   coin type: auto-resolved from chain accepted_quotes (override with --quote)
-  manager:   \${MANAGER_OBJECT_ID} from .env
-  sender:    keypair-derived if PRIVATE_KEY set, else manager.owner from chain
+  manager:   auto-resolved from sender's owned PredictManagers (prompt if multiple; override with --manager)
+  sender:    keypair-derived if PRIVATE_KEY set, else pass --sender <addr>
   recipient: same as sender
 
 Examples:

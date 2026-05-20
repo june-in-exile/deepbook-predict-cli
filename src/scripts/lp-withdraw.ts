@@ -28,7 +28,7 @@ const main = async (): Promise<void> => {
   if (!human) throw new Error('missing --shares; example: --shares 50');
   const shares = parseDecimalAmount(human, 6);
 
-  const ctx = createContext();
+  const ctx = await createContext();
   const quote = await resolveQuote(ctx, readFlag(argv, '--quote'));
   const sender = await resolveSender(ctx, argv);
   const predict = await getPredict(ctx);

@@ -111,15 +111,21 @@ set at runtime.
 |---|---|
 | `RPC_URL` | Sui fullnode RPC URL |
 | `SERVER_URL` | Predict Server base URL (indexer; only 4 endpoints exist) |
-| `PACKAGE_ID` | Predict package on testnet |
-| `PREDICT_OBJECT_ID` | Shared Predict object — every PTB takes this |
-| `PREDICT_REGISTRY_ID` | Shared registry — informational only |
-| `MANAGER_OBJECT_ID` | Your per-account PredictManager (create via `setup --create-manager`) |
+| `PACKAGE_ID` | Predict package on testnet (version-pinned; e.g. `predict-testnet-4-16`) |
 | `PRIVATE_KEY` | Your `suiprivkey1…` (empty until you need to sign) |
 
-Oracle ids are resolved at runtime — `inspect`, `preview`, and `mint-binary`
-auto-pick the active oracle from the indexer; `redeem` derives it from your
-manager's positions. Pass `--oracle <id>` to any of them to override.
+The Predict shared-object id, oracle id, and manager id are resolved at
+runtime, so none of them live in `.env`:
+
+- **Predict object** — derived once at startup from the indexer's `/oracles`
+  feed. Fails fast if the indexer is unreachable or reports multiple
+  distinct predict objects (mid-deployment state).
+- **Oracle** — `inspect`, `preview`, and `mint-binary` auto-pick the next
+  Active oracle from the indexer; `redeem` derives it from your manager's
+  matching position. Pass `--oracle <id>` to override.
+- **Manager** — auto-resolved from the sender's owned `PredictManager`
+  objects; pass `--manager <id>` to override (required when the sender
+  owns multiple).
 
 The current `.env.example` is pre-filled with the live testnet
 identifiers as of `predict-testnet-4-16`. Verify each one against

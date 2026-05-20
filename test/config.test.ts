@@ -5,9 +5,6 @@ const VALID = Object.freeze({
   RPC_URL: 'https://fullnode.testnet.sui.io:443',
   SERVER_URL: 'https://predict-server.testnet.mystenlabs.com',
   PACKAGE_ID: '0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138',
-  PREDICT_OBJECT_ID: '0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a',
-  PREDICT_REGISTRY_ID: '0x43af14fed5480c20ff77e2263d5f794c35b9fab7e2212903127062f4fe2a6e64',
-  MANAGER_OBJECT_ID: '0xe55ea85bcf29d5cbea28e29cfaf6c3ecc58f461053aa06b4436b950e98608a3d',
 });
 
 describe('loadConfig', () => {
@@ -39,9 +36,9 @@ describe('loadConfig', () => {
 
   it('rejects a malformed object id (no 0x prefix)', () => {
     Object.assign(process.env, VALID, {
-      PREDICT_OBJECT_ID: 'c8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a',
+      PACKAGE_ID: 'f5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138',
     });
-    expect(() => loadConfig()).toThrowError(/PREDICT_OBJECT_ID/);
+    expect(() => loadConfig()).toThrowError(/PACKAGE_ID/);
   });
 
   it('keeps PRIVATE_KEY optional but propagates it when present', () => {

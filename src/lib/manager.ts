@@ -1,6 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 
 import type { Ctx } from '../client.js';
+import { listManagers } from './server.js';
 import { decodeU64LittleEndian, devInspectReturnValues } from './view.js';
 
 export type Position = Readonly<{
@@ -27,8 +28,7 @@ export type ManagerState = Readonly<{
   rangePositionsTableId: string;
 }>;
 
-export const getManager = async (ctx: Ctx): Promise<ManagerState> => {
-  const id = ctx.config.MANAGER_OBJECT_ID;
+export const getManager = async (ctx: Ctx, id: string): Promise<ManagerState> => {
   const res = await ctx.client.getObject({
     id,
     options: { showContent: true, showType: true },
@@ -49,6 +49,20 @@ export const getManager = async (ctx: Ctx): Promise<ManagerState> => {
     positionsTableId: extractId(inner(fields.positions).id) ?? '',
     rangePositionsTableId: extractId(inner(fields.range_positions).id) ?? '',
   });
+};
+
+/**
+ * Lists all PredictManager ids whose Move-level `owner` field equals `owner`.
+ * Used by the resolver to auto-pick the user's manager without needing it in
+ * .env. Hits the indexer's /managers?owner=<addr> endpoint — PredictManager
+ * is a Sui-shared object so `getOwnedObjects` cannot be used.
+ */
+export const findOwnedManagers = async (
+  ctx: Ctx,
+  owner: string,
+): Promise<readonly string[]> => {
+  const entries = await listManagers(ctx, owner);
+  return Object.freeze(entries.map((e) => e.manager_id));
 };
 
 export const listBinaryPositions = async (

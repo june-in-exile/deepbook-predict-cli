@@ -49,7 +49,7 @@ const OracleEntrySchema = z.object({
   expiry: z.number(),
   min_strike: z.number(),
   tick_size: z.number(),
-  status: z.enum(['active', 'inactive', 'pending_settlement', 'settled']),
+  status: z.enum(['created', 'active', 'inactive', 'pending_settlement', 'settled']),
   activated_at: z.number().nullable(),
   settlement_price: z.number().nullable(),
   settled_at: z.number().nullable(),
@@ -71,6 +71,47 @@ export const listManagers = async (ctx: Ctx, owner?: string): Promise<readonly M
 
 export const listOracles = async (ctx: Ctx): Promise<readonly OracleEntry[]> =>
   Object.freeze(await fetchJson(ctx, '/oracles', OraclesResponse));
+
+/**
+ * Resolves the unique Predict shared-object id from the indexer's `/oracles`
+ * feed. Called once during `createContext`; the resulting id flows on Ctx so
+ * downstream PTB / read code never needs to know about indexer plumbing.
+ *
+ * Fails fast on indexer unreachable, empty oracle set, or multiple distinct
+ * predict objects (would indicate a mid-migration deployment that requires
+ * a manual decision — we refuse to silently pick one).
+ *
+ * Does not require a Ctx so that `createContext` can call it before the Ctx
+ * is fully constructed.
+ */
+export const resolvePredictObjectId = async (serverUrl: string): Promise<string> => {
+  const url = `${serverUrl}/oracles`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(
+      `Cannot resolve PREDICT_OBJECT_ID: indexer GET ${url} failed (${res.status} ${res.statusText}).`,
+    );
+  }
+  const body = (await res.json()) as unknown;
+  const parsed = OraclesResponse.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    throw new Error(
+      `GET ${url}: response shape unexpected — ${issue?.path.join('.') || '(root)'}: ${issue?.message}`,
+    );
+  }
+  const ids = new Set(parsed.data.map((o) => o.predict_id));
+  if (ids.size === 0) {
+    throw new Error(`Indexer at ${url} returned no oracles; cannot auto-resolve PREDICT_OBJECT_ID.`);
+  }
+  if (ids.size > 1) {
+    throw new Error(
+      `Indexer returned multiple distinct predict objects (${[...ids].join(', ')}); ` +
+        `cannot auto-resolve. Likely mid-deployment — wait for the indexer to converge.`,
+    );
+  }
+  return [...ids][0]!;
+};
 
 /**
  * Filter oracles to ones currently Active *and* whose expiry hasn't passed

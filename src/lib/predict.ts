@@ -27,17 +27,17 @@ export type PredictState = Readonly<{
 
 export const getPredict = async (ctx: Ctx): Promise<PredictState> => {
   const res = await ctx.client.getObject({
-    id: ctx.config.PREDICT_OBJECT_ID,
+    id: ctx.predictObjectId,
     options: { showContent: true, showType: true },
   });
-  const fields = extractMoveFields(res, ctx.config.PREDICT_OBJECT_ID);
+  const fields = extractMoveFields(res, ctx.predictObjectId);
   const vault = nestedFields(fields.vault);
   const vaultBalance = readBigInt(vault.balance);
   const vaultMtm = readBigInt(vault.total_mtm);
   const vaultTotalMaxPayout = readBigInt(vault.total_max_payout);
   const vaultValue = vaultBalance > vaultMtm ? vaultBalance - vaultMtm : 0n;
   return Object.freeze({
-    id: ctx.config.PREDICT_OBJECT_ID,
+    id: ctx.predictObjectId,
     tradingPaused: Boolean(fields.trading_paused),
     acceptedQuotes: parseAcceptedQuotes(fields.treasury_config),
     riskConfig: nestedFields(fields.risk_config),

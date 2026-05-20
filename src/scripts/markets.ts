@@ -12,7 +12,7 @@ const explicitLimit = Number(readFlag(args, '--limit') ?? 20);
 const showAll = args.includes('--all');
 
 const main = async (): Promise<void> => {
-  const ctx = createContext();
+  const ctx = await createContext();
   const oracles = await listOracles(ctx);
   const now = Date.now();
   const visible = showAll

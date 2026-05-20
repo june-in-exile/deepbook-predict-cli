@@ -21,7 +21,7 @@ export const buildLpSupplyTx = async (ctx: Ctx, args: LpSupplyArgs): Promise<Tra
     target: `${ctx.config.PACKAGE_ID}::predict::supply`,
     typeArguments: [coinType],
     arguments: [
-      tx.object(ctx.config.PREDICT_OBJECT_ID),
+      tx.object(ctx.predictObjectId),
       supplyCoin,
       tx.object('0x6'),
     ],
