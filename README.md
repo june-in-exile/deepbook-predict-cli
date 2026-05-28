@@ -200,7 +200,8 @@ treated as a full type).
 | Command | What it does |
 |---|---|
 | `npm run typecheck` | TypeScript strict mode check. |
-| `npm test` | Run unit tests (28 cases). |
+| `npm test` | Run unit tests (45 cases across 6 files). |
+| `npm run build` | Compile TypeScript to `dist/` and mark `dist/cli.js` executable (used by `prepublishOnly`). |
 
 ## How a typical run looks
 
@@ -208,19 +209,23 @@ treated as a full type).
 $ npm run --silent setup
 === setup ===
   sender:  0xdbbd9f28…
-  manager exists:     yes
-  owner matches:      yes
-  wallet DUSDC:       100
-  manager DUSDC:      50
+  network: https://fullnode.testnet.sui.io:443
+
+  managers owned:     1
+    [1] 0x9a4f…
+  wallet DUSDC:       100 (raw 100000000)
+  manager DUSDC:      50 (raw 50000000)
 
   --- readiness ---
-  ✓ PredictManager ready
+  ✓ PredictManager exists
   ✓ Wallet holds DUSDC
   ✓ Manager funded above $10
 
   Ready to trade. Examples:
-       npm run preview     -- --strike 80500 --qty 5
-       …
+       deepbook-predict preview     --strike 80500 --qty 5
+       deepbook-predict mint-binary --strike 80500 --qty 5 --direction up --execute
+       deepbook-predict lp-supply   --amount 100 --execute
+       deepbook-predict inspect
 
 $ npm run --silent mint-binary -- --strike 80500 --qty 5 --direction up --execute
 === mint binary UP ===
@@ -246,32 +251,38 @@ Source layout:
 ```text
 src/
   config.ts           — zod-validated .env loader
-  client.ts           — SuiClient + optional Ed25519Keypair
+  client.ts           — SuiClient + optional Ed25519Keypair, resolves Predict object id
   cli.ts              — subcommand dispatcher (entry for the published binary)
   lib/
     predict.ts        — read Predict shared object (incl. vault metrics + PLP supply)
-    manager.ts        — read PredictManager, list positions, view balance/position via devInspect
+    manager.ts        — read PredictManager, list binary/range positions, devInspect-backed views
     oracle.ts         — read OracleSVI, compute lifecycle (mirrors oracle.move::status)
+    oracle-pick.ts    — pure pickers (active set / position match) + resolveOracle IO wrapper
+    quote.ts          — resolve quote asset from Predict.accepted_quotes (+ --quote arg)
     server.ts         — typed wrappers around the 4 Predict Server endpoints
-    coins.ts          — fetchAllCoins + splitFromOwned (shared between 3 PTB builders)
+    coins.ts          — fetchAllCoins + splitFromOwned (shared between PTB builders)
     view.ts           — devInspect-as-view-call helpers
   ptb/                — PTB builders (return Transaction; do not execute)
-    deposit.ts        — split DUSDC + predict_manager::deposit
+    deposit.ts        — split quote coin + predict_manager::deposit
     withdraw.ts       — predict_manager::withdraw + transferObjects
-    mintBinary.ts     — market_key::up|down + predict::mint
+    mintBinary.ts     — market_key::up|down + predict::mint (+ get_trade_amounts preview)
+    mintRange.ts      — range market_key + predict::mint (+ get_trade_amounts preview)
     redeem.ts         — market_key::up|down + predict::redeem
-    lpSupply.ts       — split DUSDC + predict::supply + transferObjects
+    redeemRange.ts    — range market_key + predict::redeem
+    lpSupply.ts       — split quote coin + predict::supply + transferObjects
     lpWithdraw.ts     — split PLP + predict::withdraw + transferObjects
   scripts/            — one entry point per command (run via npm or dispatcher)
     _cli.ts           — shared helpers: parseDecimalAmount, formatDecimal,
-                        resolveSender, dryRun, sign, printOutcome
+                        resolveSender, resolveManagerId, dryRun, sign, printOutcome
     inspect.ts        — read-only dashboard
-    markets.ts        — server-backed oracle list
-    preview.ts        — UP+DOWN preview table
+    markets.ts        — server-backed oracle list (interactive pagination)
+    preview.ts        — UP+DOWN + range preview tables (supports --strikes / --ranges / --oracles)
     setup.ts          — readiness checker, opt-in manager creator
-    deposit.ts / withdraw.ts / mint-binary.ts / redeem.ts /
+    deposit.ts / withdraw.ts /
+      mint-binary.ts / mint-range.ts /
+      redeem.ts / redeem-range.ts /
       lp-supply.ts / lp-withdraw.ts / e2e.ts
-test/                 — vitest unit tests (28 cases)
+test/                 — vitest unit tests (45 cases across 6 files)
 DEEPBOOK_PREDICT_MVP_PLAN.md — the implementation plan this CLI follows
 ```
 
@@ -401,12 +412,16 @@ full coin type. `npm run inspect` lists every accepted quote under
 Per the plan's scope:
 
 - No **wallet UI / browser integration**. Local keypair only.
-- No **multi-quote support**. Single quote asset (DUSDC) hardcoded.
 - No **historical position tracking**. The Predict Server's indexer
   doesn't expose per-manager history; would require Sui event RPC.
 - No **gas estimation UI**. Transactions either succeed or fail; gas
   estimates come back in the dry-run output.
 - No **retry logic**. Manual re-run on failure is the workflow.
+
+Multi-quote support is implemented but unexercised: the protocol's
+`accepted_quotes` set currently contains only DUSDC, so `--quote` is
+optional today. When a second quote lands, the CLI will refuse to run
+without it (see [Quote selection](#quote-selection)).
 
 ## Publishing the CLI
 
@@ -464,17 +479,16 @@ From the plan:
 | Item | Status |
 |---|---|
 | Fresh clone + `.env` + `npm install` + `npm run setup` works | ✅ verified |
-| `npm run e2e` runs all lifecycle commands (binary + range) | ⚠ orchestrator built; execution gated on DUSDC supply |
+| `npm run e2e` runs all lifecycle commands (binary + range) | ✅ orchestrator shipped (runtime needs DUSDC in wallet) |
 | Range options (mint-range, redeem-range, preview, e2e integration) | ✅ shipped |
+| Multi-quote support via `accepted_quotes` + `--quote` flag | ✅ shipped (dormant until protocol adds a second quote) |
+| Auto-resolution of Predict / Oracle / Manager ids (no env IDs) | ✅ shipped |
+| `npm test` green | ✅ 45 cases across 6 files |
+| Published as `deepbook-predict-cli` on npm | ✅ shipped |
 | README clear enough for a Sui-familiar developer | ← you're reading it |
 | 3-minute demo recording | Out of scope for a CLI-only session |
 
 ## License
 
-None yet. **Must be set before the npm publish in
-[Future](#future-publishing-the-cli) goes out** — npm tarballs without a
-`LICENSE` are ambiguous about reuse rights, and the slides will hit
-Vercel before the CLI does, so anyone scraping the public deploy needs
-clear terms. MIT is the obvious default for a toy/teaching example;
-revisit if anything in here turns out to be load-bearing for production
-use.
+[MIT](./LICENSE). Toy / teaching example — no warranty, use at your own
+risk. The slides under `presentation/` ship under the same license.

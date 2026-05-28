@@ -230,7 +230,7 @@ Defaults:
             pass --oracle <id> to override.
   --oracles compare multiple oracles in one run; emits one preview block per
             oracle id. Takes precedence over --oracle. All ids must be Active.
-            Use \`npm run markets --all\` to list candidate oracle ids.
+            Use \`npm run markets\` (or \`--active\` / \`--asc\`) to list candidate oracle ids.
 
 Examples:
   deepbook-predict preview --strikes 79000,80000,80500,81000,82000
