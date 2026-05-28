@@ -1,5 +1,12 @@
 # DeepBook Predict — Toy Example + Slides
 
+[![npm version](https://img.shields.io/npm/v/deepbook-predict-cli.svg)](https://www.npmjs.com/package/deepbook-predict-cli)
+[![npm downloads](https://img.shields.io/npm/dm/deepbook-predict-cli.svg)](https://www.npmjs.com/package/deepbook-predict-cli)
+[![license](https://img.shields.io/npm/l/deepbook-predict-cli.svg)](./LICENSE)
+[![node](https://img.shields.io/node/v/deepbook-predict-cli.svg)](https://nodejs.org)
+
+> **Install:** `npm install -g deepbook-predict-cli` · **npm:** [deepbook-predict-cli](https://www.npmjs.com/package/deepbook-predict-cli)
+
 A learning bundle for [DeepBook Predict](https://docs.sui.io/onchain-finance/deepbook-predict/design),
 the binary-options primitive on Sui testnet. **Not a production tool.** This
 repo holds two artifacts side by side, both aimed at someone who wants to
