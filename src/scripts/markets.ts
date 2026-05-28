@@ -9,10 +9,10 @@ const wantsJson = process.argv.includes('--json');
 const args = process.argv.slice(2);
 const filterAsset = readFlag(args, '--asset');
 const limitFlag = readFlag(args, '--limit');
-const showAll = args.includes('--all');
+const activeOnly = args.includes('--active');
 const noInteractive = args.includes('--no-interactive');
-const startDesc = args.includes('--desc');
-const explicitLimit = limitFlag !== undefined ? Number(limitFlag) : showAll ? Infinity : 20;
+const startAsc = args.includes('--asc');
+const explicitLimit = limitFlag !== undefined ? Number(limitFlag) : Infinity;
 const PAGE_STEP = 20;
 const HEADERS = ['oracle_id', 'asset', 'expiry (UTC)', 'in', 'status'] as const;
 
@@ -20,11 +20,11 @@ const main = async (): Promise<void> => {
   const ctx = await createContext();
   const oracles = await listOracles(ctx);
   const now = Date.now();
-  const visible = showAll
-    ? (filterAsset ? oracles.filter((o) => o.underlying_asset === filterAsset) : oracles)
-    : findActiveOracles(oracles, filterAsset ? { now, underlyingAsset: filterAsset } : { now });
+  const visible = activeOnly
+    ? findActiveOracles(oracles, filterAsset ? { now, underlyingAsset: filterAsset } : { now })
+    : (filterAsset ? oracles.filter((o) => o.underlying_asset === filterAsset) : oracles);
   const sorted = [...visible].sort((a, b) =>
-    startDesc ? b.expiry - a.expiry : a.expiry - b.expiry,
+    startAsc ? a.expiry - b.expiry : b.expiry - a.expiry,
   );
 
   if (wantsJson) {
@@ -32,7 +32,7 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const title = `${visible.length} ${showAll ? 'total' : 'active'} oracles${filterAsset ? ` (${filterAsset})` : ''}`;
+  const title = `${visible.length} ${activeOnly ? 'active' : 'total'} oracles${filterAsset ? ` (${filterAsset})` : ''}`;
   const interactive =
     !noInteractive &&
     process.stdin.isTTY &&
@@ -40,7 +40,7 @@ const main = async (): Promise<void> => {
     sorted.length > PAGE_STEP;
 
   if (interactive) {
-    await renderInteractive(sorted, now, title, startDesc);
+    await renderInteractive(sorted, now, title, !startAsc);
     return;
   }
 

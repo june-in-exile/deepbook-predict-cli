@@ -26,7 +26,7 @@ const printHelp = (): void => {
 Read-only:
   setup              Check readiness + manager status
   inspect            Dump Predict / Manager / Oracle / Wallet state
-  markets            List active oracles
+  markets            List oracles (interactive, newest expiry first)
   preview            Side-by-side UP+DOWN ask/bid table
 
 Trading (requires PRIVATE_KEY + DUSDC; dry-run unless --execute):

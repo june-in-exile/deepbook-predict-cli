@@ -142,8 +142,8 @@ Lifecycle commands accept `--help` for usage details.
 | Command | What it does |
 |---|---|
 | `npm run inspect` | Dumps Predict / Manager / Oracle / Wallet state. Add `--json` for machine output. |
-| `npm run markets` | Lists active oracles via the indexer. Supports `--asset BTC`, `--limit N`, `--all`. |
-| `npm run preview -- --strikes 80000,80500,81000` | Side-by-side UP+DOWN ask/bid table across a strike ladder. Defaults to the next-to-settle Active oracle; pass `--oracle <id>` to target a specific market, or `--oracles <id1,id2,...>` to compare multiple expiries in one run (one block per oracle). Use `npm run markets --all` to list candidate oracle ids. |
+| `npm run markets` | Lists all oracles via the indexer, newest expiry first. Scrollable in a TTY (↑/↓ j/k · Space/b ±20 · g/G · r reverse · q quit). Flags: `--asset BTC`, `--active`, `--asc`, `--limit N`, `--no-interactive`, `--json`. |
+| `npm run preview -- --strikes 80000,80500,81000` | Side-by-side UP+DOWN ask/bid table across a strike ladder. Defaults to the next-to-settle Active oracle; pass `--oracle <id>` to target a specific market, or `--oracles <id1,id2,...>` to compare multiple expiries in one run (one block per oracle). Use `npm run markets` to list candidate oracle ids. |
 | `npm run preview -- --ranges 79500-80500,80500-81500` | ask/bid table for range positions (inside-range payoff), one row per `lower-higher` pair plus width. Combine with `--strikes` to render both blocks in a single run; `--oracle` / `--oracles` apply here too. |
 
 ### Setup
