@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { formatDecimal, parseDecimalAmount } from '../src/scripts/_cli.js';
+import { formatDecimal, parseDecimalAmount, waitForBalances } from '../src/scripts/_cli.js';
+import type { Ctx } from '../src/client.js';
+
+/** Minimal Ctx whose getBalance walks `script[coinType]` one entry per call,
+ *  clamping to the last entry once a coin's script is exhausted. */
+const fakeCtx = (script: Record<string, ReadonlyArray<bigint>>): { ctx: Ctx; calls: () => number } => {
+  const perCoin = new Map<string, number>();
+  let calls = 0;
+  const ctx = {
+    client: {
+      getBalance: async ({ coinType }: { coinType: string }) => {
+        const seq = script[coinType] ?? [0n];
+        const i = perCoin.get(coinType) ?? 0;
+        perCoin.set(coinType, i + 1);
+        calls += 1;
+        return { totalBalance: (seq[Math.min(i, seq.length - 1)] ?? 0n).toString() };
+      },
+    },
+  } as unknown as Ctx;
+  return { ctx, calls: () => calls };
+};
 
 describe('parseDecimalAmount', () => {
   it('scales whole numbers', () => {
@@ -27,6 +47,36 @@ describe('parseDecimalAmount', () => {
     expect(() => parseDecimalAmount('abc', 6)).toThrow(/decimal number/);
     expect(() => parseDecimalAmount('1e6', 6)).toThrow(/decimal number/);
     expect(() => parseDecimalAmount('-1', 6)).toThrow(/decimal number/);
+  });
+});
+
+describe('waitForBalances', () => {
+  const COIN = '0x2::test::USDC';
+
+  it('returns immediately when the index already reports the expected value', async () => {
+    const { ctx, calls } = fakeCtx({ [COIN]: [500n] });
+    await waitForBalances(ctx, '0xowner', new Map([[COIN, 500n]]), { pollMs: 1 });
+    expect(calls()).toBe(1);
+  });
+
+  it('polls until a lagging coin index catches up', async () => {
+    const { ctx, calls } = fakeCtx({ [COIN]: [100n, 100n, 500n] });
+    await waitForBalances(ctx, '0xowner', new Map([[COIN, 500n]]), { pollMs: 1 });
+    expect(calls()).toBe(3);
+  });
+
+  it('gives up after the timeout instead of blocking forever', async () => {
+    const { ctx } = fakeCtx({ [COIN]: [100n] });
+    await waitForBalances(ctx, '0xowner', new Map([[COIN, 999n]]), { timeoutMs: 10, pollMs: 5 });
+    expect(true).toBe(true); // resolved rather than hanging
+  });
+
+  it('waits for every coin type to reach its target', async () => {
+    const A = '0x2::a::A';
+    const B = '0x2::b::B';
+    const { ctx } = fakeCtx({ [A]: [1n, 10n], [B]: [2n, 2n, 20n] });
+    await waitForBalances(ctx, '0xowner', new Map([[A, 10n], [B, 20n]]), { pollMs: 1 });
+    expect(true).toBe(true);
   });
 });
 

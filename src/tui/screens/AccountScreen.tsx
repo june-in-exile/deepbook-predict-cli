@@ -1,8 +1,9 @@
-import React from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useState } from 'react';
+import { Box, Text, useInput, useStdout } from 'ink';
 import { Transaction } from '@mysten/sui/transactions';
 
 import type { ScreenProps } from '../App.js';
+import { SECTIONS } from '../sections.js';
 import { useApp } from '../state/AppContext.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { useTabs } from '../hooks/useTabs.js';
@@ -85,6 +86,137 @@ const Check = ({ ok, label }: { ok: boolean; label: string }): React.ReactElemen
   </Text>
 );
 
+/**
+ * Fixed rows around the scrolling Overview body so the frame fits the terminal —
+ * a frame taller than the viewport can't be cleared by Ink and piles up stale
+ * copies. StatusBar (6) + content border (2) + scroll footer (1) + app footer (1)
+ * = 10, plus one spare against resizes. The floor is `SECTIONS.length` so the
+ * frame fills the sidebar-pinned height instead of painting blank rows beneath.
+ */
+const CHROME_ROWS = 11;
+
+export const accountPageSize = (rows: number): number =>
+  Math.max(SECTIONS.length, rows - CHROME_ROWS);
+
+type Quote = ReturnType<typeof useApp>['quote'];
+
+/**
+ * Flatten the read-only Overview into short, single-row lines (long stat lines
+ * are split so they never wrap and defeat the row-budget). Used only once a
+ * manager is selected, when every block — including the position list — is text.
+ */
+const inspectLines = (d: OverviewData, quote: Quote): React.ReactElement[] => {
+  const dec = { groupThousands: true };
+  const lines: React.ReactElement[] = [
+    <Text bold>Readiness</Text>,
+    <Check ok={d.managers.length > 0} label="PredictManager exists" />,
+    <Check ok={d.wallet.quote > 0n} label={`Wallet holds ${quote.symbol}`} />,
+    <Check ok={(d.manager?.balance ?? 0n) >= LOW_BALANCE_THRESHOLD_RAW} label="Manager funded above $10" />,
+    <Text bold>Predict</Text>,
+    <Text dimColor>
+      paused {String(d.predict.tradingPaused)} · accepted quotes {d.predict.acceptedQuotes.length}
+    </Text>,
+    <Text dimColor>
+      vault value {formatDecimal(d.predict.vaultValue, quote.decimals, dec)} · balance{' '}
+      {formatDecimal(d.predict.vaultBalance, quote.decimals, dec)}
+    </Text>,
+    <Text dimColor>
+      MTM {formatDecimal(d.predict.vaultMtm, quote.decimals, dec)} · max_payout{' '}
+      {formatDecimal(d.predict.vaultTotalMaxPayout, quote.decimals, dec)}
+    </Text>,
+    <Text dimColor>PLP supply {formatDecimal(d.predict.plpTotalSupply, PLP_DECIMALS, dec)}</Text>,
+  ];
+
+  if (d.manager) {
+    const m = d.manager;
+    lines.push(
+      <Text bold>Manager</Text>,
+      <Text dimColor>id    {m.id}</Text>,
+      <Text dimColor>owner {m.owner}</Text>,
+      <Text dimColor>
+        binary {m.bin.length} · range {m.range.length}
+      </Text>,
+      ...m.bin.map((p) => (
+        <Text dimColor>
+          {'  '}
+          {p.isUp ? 'UP  ' : 'DOWN'} strike {formatDecimal(p.strike, PRICE_DECIMALS)} qty {String(p.quantity)} exp{' '}
+          {formatUtc(p.expiryMs)}
+        </Text>
+      )),
+      ...m.range.map((p) => (
+        <Text dimColor>
+          {'  '}({formatDecimal(p.lowerStrike, PRICE_DECIMALS)} .. {formatDecimal(p.higherStrike, PRICE_DECIMALS)}] qty{' '}
+          {String(p.quantity)} exp {formatUtc(p.expiryMs)}
+        </Text>
+      )),
+    );
+  }
+
+  lines.push(
+    <Text bold>Wallet</Text>,
+    <Text dimColor>
+      {quote.symbol} {formatDecimal(d.wallet.quote, quote.decimals, dec)} · PLP{' '}
+      {formatDecimal(d.wallet.plp, PLP_DECIMALS, dec)} · SUI {formatDecimal(d.wallet.sui, SUI_DECIMALS, dec)}
+    </Text>,
+  );
+
+  if (d.oracle) {
+    lines.push(
+      <Text bold>Selected oracle</Text>,
+      <Text dimColor>
+        {shortId(d.oracle.id)} {d.oracle.underlyingAsset} {d.oracle.lifecycle} · spot{' '}
+        {formatDecimal(d.oracle.spot, PRICE_DECIMALS)} · expiry {formatUtc(d.oracle.expiryMs)}
+      </Text>,
+    );
+  }
+
+  return lines;
+};
+
+/** Windowed, scrollable render of the read-only Overview once a manager is selected. */
+const InspectBody = ({
+  lines,
+  focus,
+  onExit,
+}: {
+  lines: readonly React.ReactElement[];
+  focus: boolean;
+  onExit: () => void;
+}): React.ReactElement => {
+  const { stdout } = useStdout();
+  const [offset, setOffset] = useState(0);
+
+  const total = lines.length;
+  const pageSize = accountPageSize(stdout?.rows ?? 30);
+  const maxOffset = Math.max(0, total - pageSize);
+  const clamped = Math.min(offset, maxOffset);
+  const window = lines.slice(clamped, clamped + pageSize);
+
+  useInput(
+    (input, key) => {
+      if (key.escape) return onExit();
+      if (key.upArrow || input === 'k') setOffset((o) => Math.max(0, o - 1));
+      else if (key.downArrow || input === 'j') setOffset((o) => Math.min(maxOffset, o + 1));
+      else if (input === ' ') setOffset((o) => Math.min(maxOffset, o + pageSize));
+      else if (input === 'b') setOffset((o) => Math.max(0, o - pageSize));
+      else if (input === 'g') setOffset(0);
+      else if (input === 'G') setOffset(maxOffset);
+    },
+    { isActive: focus },
+  );
+
+  return (
+    <Box flexDirection="column">
+      {window.map((node, i) => (
+        <React.Fragment key={clamped + i}>{node}</React.Fragment>
+      ))}
+      <Text dimColor>
+        {total === 0 ? 0 : clamped + 1}-{Math.min(clamped + pageSize, total)} of {total} · ↑/↓ j/k · space/b page · g/G
+      </Text>
+    </Box>
+  );
+};
+
 const Overview = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const app = useApp();
   const { ctx, quote, canSign, selectedManagerId, setSelectedManagerId, refreshNonce } = app;
@@ -100,61 +232,68 @@ const Overview = ({ focus, onExit }: ScreenProps): React.ReactElement => {
 
   return (
     <Async state={state} loadingLabel="loading account…">
-      {(d) => (
-        <Box flexDirection="column">
-          <Text bold>Readiness</Text>
-          <Check ok={d.managers.length > 0} label="PredictManager exists" />
-          <Check ok={d.wallet.quote > 0n} label={`Wallet holds ${quote.symbol}`} />
-          <Check ok={(d.manager?.balance ?? 0n) >= LOW_BALANCE_THRESHOLD_RAW} label="Manager funded above $10" />
+      {(d) =>
+        // Manager selected ⇒ every block (incl. positions) is read-only text, which
+        // can outgrow the viewport — render it scrollable. Otherwise the manager
+        // picker / create form is the active control and the layout stays bounded.
+        d.manager ? (
+          <InspectBody lines={inspectLines(d, quote)} focus={focus} onExit={onExit} />
+        ) : (
+          <Box flexDirection="column">
+            <Text bold>Readiness</Text>
+            <Check ok={d.managers.length > 0} label="PredictManager exists" />
+            <Check ok={d.wallet.quote > 0n} label={`Wallet holds ${quote.symbol}`} />
+            <Check ok={false} label="Manager funded above $10" />
 
-          <Box marginTop={1} flexDirection="column">
-            <Text bold>Predict</Text>
-            <Text dimColor>
-              paused {String(d.predict.tradingPaused)} · vault value{' '}
-              {formatDecimal(d.predict.vaultValue, quote.decimals, { groupThousands: true })} · balance{' '}
-              {formatDecimal(d.predict.vaultBalance, quote.decimals, { groupThousands: true })} · MTM{' '}
-              {formatDecimal(d.predict.vaultMtm, quote.decimals, { groupThousands: true })}
-            </Text>
-            <Text dimColor>
-              max_payout {formatDecimal(d.predict.vaultTotalMaxPayout, quote.decimals, { groupThousands: true })} · PLP supply{' '}
-              {formatDecimal(d.predict.plpTotalSupply, PLP_DECIMALS, { groupThousands: true })} · accepted quotes{' '}
-              {d.predict.acceptedQuotes.length}
-            </Text>
-          </Box>
-
-          <Box marginTop={1} flexDirection="column">
-            <Text bold>Manager</Text>
-            <ManagerBlock
-              data={d}
-              focus={focus}
-              selectedManagerId={selectedManagerId}
-              onSelect={setSelectedManagerId}
-              canSign={canSign}
-              ctx={ctx}
-              onExit={onExit}
-            />
-          </Box>
-
-          <Box marginTop={1} flexDirection="column">
-            <Text bold>Wallet</Text>
-            <Text dimColor>
-              {quote.symbol} {formatDecimal(d.wallet.quote, quote.decimals, { groupThousands: true })} · PLP{' '}
-              {formatDecimal(d.wallet.plp, PLP_DECIMALS, { groupThousands: true })} · SUI{' '}
-              {formatDecimal(d.wallet.sui, SUI_DECIMALS, { groupThousands: true })}
-            </Text>
-          </Box>
-
-          {d.oracle ? (
             <Box marginTop={1} flexDirection="column">
-              <Text bold>Selected oracle</Text>
+              <Text bold>Predict</Text>
               <Text dimColor>
-                {shortId(d.oracle.id)} {d.oracle.underlyingAsset} {d.oracle.lifecycle} · spot{' '}
-                {formatDecimal(d.oracle.spot, PRICE_DECIMALS)} · expiry {formatUtc(d.oracle.expiryMs)}
+                paused {String(d.predict.tradingPaused)} · vault value{' '}
+                {formatDecimal(d.predict.vaultValue, quote.decimals, { groupThousands: true })} · balance{' '}
+                {formatDecimal(d.predict.vaultBalance, quote.decimals, { groupThousands: true })} · MTM{' '}
+                {formatDecimal(d.predict.vaultMtm, quote.decimals, { groupThousands: true })}
+              </Text>
+              <Text dimColor>
+                max_payout {formatDecimal(d.predict.vaultTotalMaxPayout, quote.decimals, { groupThousands: true })} · PLP supply{' '}
+                {formatDecimal(d.predict.plpTotalSupply, PLP_DECIMALS, { groupThousands: true })} · accepted quotes{' '}
+                {d.predict.acceptedQuotes.length}
               </Text>
             </Box>
-          ) : null}
-        </Box>
-      )}
+
+            <Box marginTop={1} flexDirection="column">
+              <Text bold>Manager</Text>
+              <ManagerBlock
+                data={d}
+                focus={focus}
+                selectedManagerId={selectedManagerId}
+                onSelect={setSelectedManagerId}
+                canSign={canSign}
+                ctx={ctx}
+                onExit={onExit}
+              />
+            </Box>
+
+            <Box marginTop={1} flexDirection="column">
+              <Text bold>Wallet</Text>
+              <Text dimColor>
+                {quote.symbol} {formatDecimal(d.wallet.quote, quote.decimals, { groupThousands: true })} · PLP{' '}
+                {formatDecimal(d.wallet.plp, PLP_DECIMALS, { groupThousands: true })} · SUI{' '}
+                {formatDecimal(d.wallet.sui, SUI_DECIMALS, { groupThousands: true })}
+              </Text>
+            </Box>
+
+            {d.oracle ? (
+              <Box marginTop={1} flexDirection="column">
+                <Text bold>Selected oracle</Text>
+                <Text dimColor>
+                  {shortId(d.oracle.id)} {d.oracle.underlyingAsset} {d.oracle.lifecycle} · spot{' '}
+                  {formatDecimal(d.oracle.spot, PRICE_DECIMALS)} · expiry {formatUtc(d.oracle.expiryMs)}
+                </Text>
+              </Box>
+            ) : null}
+          </Box>
+        )
+      }
     </Async>
   );
 };
@@ -204,7 +343,7 @@ const ManagerBlock = ({
       <Box flexDirection="column">
         <Text dimColor>select a manager:</Text>
         <Select
-          items={data.managers.map((id) => ({ label: shortId(id, 10, 8), value: id }))}
+          items={data.managers.map((id) => ({ label: id, value: id }))}
           focus={focus}
           onSelect={(id) => onSelect(id)}
         />

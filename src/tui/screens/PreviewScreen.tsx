@@ -9,7 +9,7 @@ import { useValues } from '../hooks/useValues.js';
 import { Field, ActionRow } from '../components/Field.js';
 import { Async } from '../components/Async.js';
 import { parseDecimalAmount } from '../../scripts/_cli.js';
-import { fmtPriceCell, perUnitE9, shortId, PRICE_DECIMALS } from '../format.js';
+import { fmtPriceCell, perUnitE9, formatUtc, formatTimeToExpiry, PRICE_DECIMALS } from '../format.js';
 import { formatDecimal } from '../../scripts/_cli.js';
 import { resolveOracle } from '../../lib/oracle-pick.js';
 import { Lifecycle } from '../../lib/oracle.js';
@@ -18,7 +18,7 @@ import { previewBinarySafe, previewRangeSafe } from '../preview.js';
 type BinRow = Readonly<{ strike: bigint; upAsk: bigint | null; upBid: bigint | null; downAsk: bigint | null; downBid: bigint | null; askSum: bigint | null; spread: bigint | null }>;
 type RngRow = Readonly<{ lower: bigint; higher: bigint; width: bigint; ask: bigint | null; bid: bigint | null }>;
 type Query = Readonly<{ strikes: readonly bigint[]; ranges: ReadonlyArray<{ lower: bigint; higher: bigint }>; qty: bigint }>;
-type Result = Readonly<{ oracleId: string; asset: string; spot: bigint; expiryMs: bigint; binary: readonly BinRow[]; range: readonly RngRow[] }>;
+type Result = Readonly<{ oracleId: string; asset: string; spot: bigint; forward: bigint; expiryMs: bigint; binary: readonly BinRow[]; range: readonly RngRow[] }>;
 
 const parseStrikes = (s: string): readonly bigint[] =>
   s.split(',').map((x) => x.trim()).filter(Boolean).map((x) => parseDecimalAmount(x, 9));
@@ -68,7 +68,7 @@ const runPreview = async (app: ReturnType<typeof useApp>, q: Query): Promise<Res
     }),
   );
 
-  return { oracleId: oracle.id, asset: oracle.underlyingAsset, spot: oracle.spot, expiryMs: oracle.expiryMs, binary, range };
+  return { oracleId: oracle.id, asset: oracle.underlyingAsset, spot: oracle.spot, forward: oracle.forward, expiryMs: oracle.expiryMs, binary, range };
 };
 
 export const PreviewScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
@@ -135,9 +135,23 @@ export const PreviewScreen = ({ focus, onExit }: ScreenProps): React.ReactElemen
 
 const PreviewTables = ({ result, quote }: { result: Result; quote: { symbol: string; decimals: bigint } }): React.ReactElement => (
   <Box flexDirection="column">
-    <Text dimColor>
-      oracle {shortId(result.oracleId)} {result.asset} spot {formatDecimal(result.spot, PRICE_DECIMALS)}
-    </Text>
+    <Box flexDirection="column">
+      <Text>
+        <Text dimColor>oracle    </Text> {result.oracleId}
+      </Text>
+      <Text>
+        <Text dimColor>underlying</Text> {result.asset}
+      </Text>
+      <Text>
+        <Text dimColor>spot      </Text> {formatDecimal(result.spot, PRICE_DECIMALS)}
+      </Text>
+      <Text>
+        <Text dimColor>forward   </Text> {formatDecimal(result.forward, PRICE_DECIMALS)}
+      </Text>
+      <Text>
+        <Text dimColor>expiry    </Text> {formatUtc(result.expiryMs)} ({formatTimeToExpiry(Number(result.expiryMs), Date.now())})
+      </Text>
+    </Box>
     {result.binary.length > 0 ? (
       <Box flexDirection="column" marginTop={1}>
         <Text bold>binary (per $1 contract, 1e9)</Text>

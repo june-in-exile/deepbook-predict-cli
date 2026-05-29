@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Transaction } from '@mysten/sui/transactions';
 
-import { dryRun, sign, type ExecuteOutcome } from '../../scripts/_cli.js';
+import { dryRun, sign, waitForBalances, type ExecuteOutcome } from '../../scripts/_cli.js';
 import type { useApp } from '../state/AppContext.js';
 
 export type ExecPhase = 'idle' | 'working' | 'confirm' | 'done' | 'error';
@@ -59,10 +59,21 @@ export const useExecution = (app: ReturnType<typeof useApp>): Execution => {
   };
 
   const confirm = async (): Promise<void> => {
-    if (!tx) return;
+    if (!tx || !sender) return;
     setPhase('working');
     try {
+      // Snapshot wallet balances before signing so we know the exact post-trade
+      // target for each affected coin, then wait for the lagging coin index to
+      // report it — otherwise the refresh below reads stale wallet balances.
+      const before = await ctx.client.getAllBalances({ owner: sender });
+      const baseline = new Map(before.map((b) => [b.coinType, BigInt(b.totalBalance)]));
       const outcome = await sign(ctx, tx);
+      if (outcome.success && outcome.mode === 'execute' && outcome.balanceChanges) {
+        const expected = new Map(
+          outcome.balanceChanges.map((c) => [c.coinType, (baseline.get(c.coinType) ?? 0n) + BigInt(c.amount)]),
+        );
+        await waitForBalances(ctx, sender, expected);
+      }
       setExec(outcome);
       setPhase('done');
       refresh();

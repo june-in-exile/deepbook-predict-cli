@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 
 import type { ScreenProps } from '../App.js';
+import { SECTIONS } from '../sections.js';
 import { useApp } from '../state/AppContext.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Async } from '../components/Async.js';
@@ -36,6 +37,18 @@ const buildLines = (p: PredictState): ScreenLine[] =>
  */
 const CHROME_ROWS = 11;
 
+/**
+ * The content frame is a flex sibling of the sidebar, so it always stretches to
+ * the sidebar's height. The sidebar is `SECTIONS.length` rows plus a "sections"
+ * header inside its border; the content frame swaps that border for its own,
+ * leaving `SECTIONS.length + 1` inner rows — one of which is our paging footer.
+ * If the body shows fewer than `SECTIONS.length` rows the frame paints blank
+ * lines beneath it, so that count is the floor. On a taller terminal
+ * `rows - CHROME_ROWS` wins and the frame grows past the sidebar instead.
+ */
+export const configPageSize = (rows: number): number =>
+  Math.max(SECTIONS.length, rows - CHROME_ROWS);
+
 /** Read-only, scrollable view of the on-chain Predict config (risk / pricing / treasury / oracle). */
 export const ConfigScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const { ctx, refreshNonce } = useApp();
@@ -60,7 +73,7 @@ const ConfigBody = ({
   const [offset, setOffset] = useState(0);
 
   const total = lines.length;
-  const pageSize = Math.max(3, (stdout?.rows ?? 30) - CHROME_ROWS);
+  const pageSize = configPageSize(stdout?.rows ?? 30);
   const maxOffset = Math.max(0, total - pageSize);
   const clamped = Math.min(offset, maxOffset);
   const window = lines.slice(clamped, clamped + pageSize);

@@ -148,22 +148,63 @@ export const sign = async (
   tx: Transaction,
 ): Promise<ExecuteOutcome> => {
   const keypair = requireKeypair(ctx.config);
+  const signerAddress = keypair.toSuiAddress();
   const res = await ctx.client.signAndExecuteTransaction({
     transaction: tx,
     signer: keypair,
     options: { showEffects: true, showBalanceChanges: true },
   });
   const status = res.effects?.status;
+  // signAndExecuteTransaction returns once executed, but the full node we query
+  // next for positions/balances may not have indexed this checkpoint yet. Wait
+  // so any immediate read-after-write (e.g. the TUI's post-trade refresh) sees
+  // the new state instead of stale data. Only meaningful on success.
+  if (status?.status === 'success') {
+    await ctx.client.waitForTransaction({ digest: res.digest });
+  }
   return {
     mode: 'execute',
     digest: res.digest,
     success: status?.status === 'success',
     ...(status?.error ? { error: status.error } : {}),
-    balanceChanges: (res.balanceChanges ?? []).map((c) => ({
-      coinType: c.coinType,
-      amount: c.amount,
-    })),
+    // Only the signer's own wallet changes — drops recipient deltas on a
+    // withdraw-to-other so the post-trade balance wait targets the right wallet.
+    balanceChanges: (res.balanceChanges ?? [])
+      .filter((c) => typeof c.owner === 'object' && 'AddressOwner' in c.owner && c.owner.AddressOwner === signerAddress)
+      .map((c) => ({ coinType: c.coinType, amount: c.amount })),
   };
+};
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const BALANCE_SYNC_TIMEOUT_MS = 8000;
+const BALANCE_SYNC_POLL_MS = 500;
+
+/**
+ * Poll `suix_getBalance` until each coin type reaches its expected post-trade
+ * value. The coin index lags the object store on public RPC, so a read issued
+ * immediately after a write can still report the pre-trade balance even though
+ * the transaction is final. Resolves as soon as every coin matches; gives up
+ * after the timeout so a stuck index never blocks the UI indefinitely.
+ */
+export const waitForBalances = async (
+  ctx: Ctx,
+  owner: string,
+  expected: ReadonlyMap<string, bigint>,
+  opts: { timeoutMs?: number; pollMs?: number } = {},
+): Promise<void> => {
+  const deadline = Date.now() + (opts.timeoutMs ?? BALANCE_SYNC_TIMEOUT_MS);
+  const pollMs = opts.pollMs ?? BALANCE_SYNC_POLL_MS;
+  const pending = new Set(expected.keys());
+  while (pending.size > 0 && Date.now() < deadline) {
+    await Promise.all(
+      [...pending].map(async (coinType) => {
+        const { totalBalance } = await ctx.client.getBalance({ owner, coinType });
+        if (BigInt(totalBalance) === expected.get(coinType)) pending.delete(coinType);
+      }),
+    );
+    if (pending.size > 0) await delay(pollMs);
+  }
 };
 
 export const printOutcome = (outcome: ExecuteOutcome): void => {

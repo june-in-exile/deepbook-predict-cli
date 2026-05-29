@@ -15,10 +15,11 @@ go from "never heard of it" to "I see how the pieces fit" in under an hour:
 1. **A 13-slide technical brief** (`presentation/`) — what Predict is, why
    it matters, and how the on-chain pieces talk to each other. Includes a
    speaker script (`script.md`) you can read instead of watching the talk.
-2. **A TypeScript CLI** (`src/`, this `package.json`) — no frontend, no
-   wallet UI, just npm scripts that walk the full lifecycle (deposit, mint,
-   redeem, LP supply, LP withdraw) with a 5-gate pre-flight dry-run before
-   anything signs.
+2. **A TypeScript CLI** (`src/`, this `package.json`) — no browser, no
+   wallet UI, local keypair only. Drive it two ways: a full-screen
+   interactive **TUI** (Ink) or individual npm scripts / subcommands that
+   walk the full lifecycle (deposit, mint, redeem, LP supply, LP withdraw),
+   each with a 5-gate pre-flight dry-run before anything signs.
 
 If you're here to **understand the protocol**, start with the slides. If
 you're here to **integrate**, start with [Quickstart](#quickstart) and
@@ -80,11 +81,37 @@ npm install
 cp .env.example .env       # fill PRIVATE_KEY (and adjust if needed)
 npm run setup              # check readiness + manager status
 npm run inspect            # pretty-print live protocol state
+npm run tui                # or skip the flags: full-screen interactive TUI
 ```
 
 If `setup` says "Wallet holds DUSDC ✗" — that's the only thing
 blocking real trades. See [Troubleshooting → DUSDC](#dusdc-not-in-wallet)
 below.
+
+## Interactive TUI
+
+Prefer a full-screen UI over memorizing flags? Launch the TUI:
+
+```bash
+deepbook-predict tui       # installed binary
+deepbook-predict           # no subcommand on a TTY → TUI by default
+npm run tui                # from a clone (tsx, no build step)
+```
+
+It wraps every command behind a sidebar of sections — **Account**
+(setup · inspect · deposit · withdraw), **Markets**, **Preview**,
+**Trade** (mint/redeem binary & range), **LP**, **Lifecycle** (full e2e),
+and **Config** (risk · pricing · treasury · oracle).
+
+| Where | Keys |
+|---|---|
+| Sidebar | `↑`/`↓` move · `enter`/`→` open · `r` refresh · `q` quit |
+| Inside a screen | `esc` back · `tab` next field · `enter` act |
+
+Signing follows the same rule as the scripts: with `PRIVATE_KEY` set you
+get full signing; without it the TUI starts **read-only** and prompts for
+a wallet address to watch (or pass `--sender 0x…`). `--quote` works here
+too.
 
 ## Prerequisites
 
@@ -141,8 +168,11 @@ page before going further.
 
 ## Command reference
 
-Thirteen user-facing scripts grouped below; two dev scripts at the end.
-Lifecycle commands accept `--help` for usage details.
+For an interactive front end to everything below, run `npm run tui` (or
+`deepbook-predict tui`) — see [Interactive TUI](#interactive-tui). The
+individual scripts are documented here; thirteen user-facing scripts
+grouped below, two dev scripts at the end. Lifecycle commands accept
+`--help` for usage details.
 
 ### Read-only (no signing required, no PRIVATE_KEY needed)
 
@@ -430,6 +460,7 @@ The CLI is published as an npm package: **`deepbook-predict-cli`**.
 ```bash
 # As an end user — install globally, run anywhere:
 npm install -g deepbook-predict-cli
+deepbook-predict             # full-screen TUI (default on a TTY)
 deepbook-predict setup
 deepbook-predict mint-binary --strike 80500 --qty 5 --direction up
 

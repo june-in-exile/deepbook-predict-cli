@@ -6,7 +6,7 @@ import { getManager, getQuoteBalance } from '../../lib/manager.js';
 import { getOracle } from '../../lib/oracle.js';
 import { useApp } from '../state/AppContext.js';
 import { useAsync } from '../hooks/useAsync.js';
-import { PLP_DECIMALS, PRICE_DECIMALS, SUI_DECIMALS, formatTimeToExpiry, shortId } from '../format.js';
+import { PLP_DECIMALS, PRICE_DECIMALS, SUI_DECIMALS, formatTimeToExpiry, formatUtc, shortId } from '../format.js';
 
 type HeaderData = Readonly<{
   walletQuote: bigint;
@@ -103,7 +103,7 @@ export const StatusBar = (): React.ReactElement => {
             <Text>
               {shortId(selectedOracleId)} {d.oracle.asset} spot{' '}
               {formatDecimal(d.oracle.spot, PRICE_DECIMALS)} exp{' '}
-              {formatTimeToExpiry(Number(d.oracle.expiryMs), Date.now())}{' '}
+              {formatUtc(d.oracle.expiryMs)} ({formatTimeToExpiry(Number(d.oracle.expiryMs), Date.now())}){' '}
               <Text color={d.oracle.lifecycle === 'Active' ? 'green' : 'yellow'}>{d.oracle.lifecycle}</Text>
             </Text>
           ) : (
