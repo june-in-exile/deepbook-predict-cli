@@ -20,66 +20,56 @@ const leafText = (v: unknown): string => {
   return String(v);
 };
 
-const indent = (depth: number): string => '  '.repeat(depth);
+/**
+ * One flattened line of the config tree. `value === null` marks a parent whose
+ * children follow on indented lines; otherwise it's a leaf `label: value`.
+ */
+export type ConfigLine = Readonly<{ depth: number; label: string; value: string | null }>;
 
-/** One key/value node — recurses into Move structs, arrays, and plain objects. */
-const Node = ({ label, value, depth }: { label: string; value: unknown; depth: number }): React.ReactElement => {
+/** Recursively flatten one key/value into ordered lines (Move structs unwrapped). */
+const flattenNode = (label: string, value: unknown, depth: number): ConfigLine[] => {
   const v = unwrap(value);
 
-  if (isLeaf(v)) {
-    return (
-      <Text>
-        {indent(depth)}
-        <Text dimColor>{label}: </Text>
-        {leafText(v)}
-      </Text>
-    );
-  }
+  if (isLeaf(v)) return [{ depth, label, value: leafText(v) }];
 
   if (Array.isArray(v)) {
-    if (v.length === 0) {
-      return (
-        <Text>
-          {indent(depth)}
-          <Text dimColor>{label}: </Text>[]
-        </Text>
-      );
-    }
-    return (
-      <Box flexDirection="column">
-        <Text>
-          {indent(depth)}
-          <Text dimColor>{label}:</Text>
-        </Text>
-        {v.map((item, i) => (
-          <Node key={i} label={`[${i}]`} value={item} depth={depth + 1} />
-        ))}
-      </Box>
-    );
+    if (v.length === 0) return [{ depth, label, value: '[]' }];
+    return [
+      { depth, label, value: null },
+      ...v.flatMap((item, i) => flattenNode(`[${i}]`, item, depth + 1)),
+    ];
   }
 
-  const entries = Object.entries(v as Record<string, unknown>);
-  return (
-    <Box flexDirection="column">
-      <Text>
-        {indent(depth)}
-        <Text dimColor>{label}:</Text>
-      </Text>
-      {entries.map(([k, val]) => (
-        <Node key={k} label={k} value={val} depth={depth + 1} />
-      ))}
-    </Box>
-  );
+  return [
+    { depth, label, value: null },
+    ...Object.entries(v as Record<string, unknown>).flatMap(([k, val]) => flattenNode(k, val, depth + 1)),
+  ];
 };
 
-/** Read-only recursive view of an arbitrary Move config object. */
+/** Flatten a config object into ordered lines for windowed rendering. */
+export const flattenConfig = (data: Record<string, unknown>): ConfigLine[] =>
+  Object.entries(data).flatMap(([k, v]) => flattenNode(k, v, 0));
+
+/** Render a single flattened config line with depth-based indentation. */
+export const ConfigLineView = ({ line }: { line: ConfigLine }): React.ReactElement => (
+  <Text>
+    {'  '.repeat(line.depth)}
+    <Text dimColor>
+      {line.label}
+      {line.value === null ? ':' : ': '}
+    </Text>
+    {line.value ?? ''}
+  </Text>
+);
+
+/** Read-only recursive view of an arbitrary Move config object (renders every line). */
 export const ConfigTree = ({ data }: { data: Record<string, unknown> }): React.ReactElement => {
-  const entries = Object.entries(data);
-  if (entries.length === 0) return <Text dimColor>(empty)</Text>;
+  const lines = flattenConfig(data);
+  if (lines.length === 0) return <Text dimColor>(empty)</Text>;
   return (
     <Box flexDirection="column">
-      {entries.map(([k, v]) => (
-        <Node key={k} label={k} value={v} depth={0} />
+      {lines.map((line, i) => (
+        <ConfigLineView key={i} line={line} />
       ))}
     </Box>
   );

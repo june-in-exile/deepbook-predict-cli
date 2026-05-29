@@ -10,6 +10,14 @@ import { findActiveOracles, listOracles, type OracleEntry } from '../../lib/serv
 
 const HEADERS = ['oracle', 'asset', 'expiry (UTC)', 'in', 'status'] as const;
 
+/**
+ * Fixed rows the list must leave for surrounding chrome so the whole frame fits
+ * the terminal — a frame taller than the viewport can't be cleared by Ink and
+ * piles up stale copies. StatusBar (6) + content border (2) + list title/header/
+ * paging/selected (4) + app footer (1) = 13, plus one spare against resizes.
+ */
+const CHROME_ROWS = 14;
+
 export const MarketsScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const { ctx, selectedOracleId, setSelectedOracleId, refreshNonce } = useApp();
   const state = useAsync(() => listOracles(ctx), [refreshNonce]);
@@ -50,7 +58,7 @@ const MarketsList = ({
   const filtered = activeOnly ? findActiveOracles(oracles, { now }) : oracles;
   const sorted = [...filtered].sort((a, b) => (desc ? b.expiry - a.expiry : a.expiry - b.expiry));
   const total = sorted.length;
-  const pageSize = Math.max(5, (stdout?.rows ?? 30) - 12);
+  const pageSize = Math.max(5, (stdout?.rows ?? 30) - CHROME_ROWS);
   const clampedIndex = Math.min(index, Math.max(0, total - 1));
   const offset = Math.min(Math.max(0, clampedIndex - Math.floor(pageSize / 2)), Math.max(0, total - pageSize));
   const window = sorted.slice(offset, offset + pageSize);

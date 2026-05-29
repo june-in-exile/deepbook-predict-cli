@@ -1,11 +1,11 @@
-import React from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useState } from 'react';
+import { Box, Text, useInput, useStdout } from 'ink';
 
 import type { ScreenProps } from '../App.js';
 import { useApp } from '../state/AppContext.js';
 import { useAsync } from '../hooks/useAsync.js';
 import { Async } from '../components/Async.js';
-import { ConfigTree } from '../components/ConfigTree.js';
+import { ConfigLineView, flattenConfig, type ConfigLine } from '../components/ConfigTree.js';
 import { getPredict, type PredictState } from '../../lib/predict.js';
 
 const BLOCKS: ReadonlyArray<{ title: string; pick: (p: PredictState) => Record<string, unknown> }> = [
@@ -15,30 +15,87 @@ const BLOCKS: ReadonlyArray<{ title: string; pick: (p: PredictState) => Record<s
   { title: 'oracle', pick: (p) => p.oracleConfig },
 ];
 
-/** Read-only view of the on-chain Predict config (risk / pricing / treasury / oracle). */
+type ScreenLine =
+  | Readonly<{ kind: 'title'; text: string }>
+  | Readonly<{ kind: 'empty' }>
+  | Readonly<{ kind: 'line'; line: ConfigLine }>;
+
+const buildLines = (p: PredictState): ScreenLine[] =>
+  BLOCKS.flatMap(({ title, pick }) => {
+    const lines = flattenConfig(pick(p));
+    const head: ScreenLine = { kind: 'title', text: title };
+    if (lines.length === 0) return [head, { kind: 'empty' } as ScreenLine];
+    return [head, ...lines.map((line): ScreenLine => ({ kind: 'line', line }))];
+  });
+
+/**
+ * Fixed rows around the scrolling body so the frame fits the terminal — a frame
+ * taller than the viewport can't be cleared by Ink and piles up stale copies.
+ * StatusBar (6) + content border (2) + scroll footer (1) + app footer (1) = 10,
+ * plus one spare against resizes.
+ */
+const CHROME_ROWS = 11;
+
+/** Read-only, scrollable view of the on-chain Predict config (risk / pricing / treasury / oracle). */
 export const ConfigScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const { ctx, refreshNonce } = useApp();
   const state = useAsync(() => getPredict(ctx), [refreshNonce]);
+  return (
+    <Async state={state} loadingLabel="loading config…">
+      {(p) => <ConfigBody lines={buildLines(p)} focus={focus} onExit={onExit} />}
+    </Async>
+  );
+};
+
+const ConfigBody = ({
+  lines,
+  focus,
+  onExit,
+}: {
+  lines: readonly ScreenLine[];
+  focus: boolean;
+  onExit: () => void;
+}): React.ReactElement => {
+  const { stdout } = useStdout();
+  const [offset, setOffset] = useState(0);
+
+  const total = lines.length;
+  const pageSize = Math.max(3, (stdout?.rows ?? 30) - CHROME_ROWS);
+  const maxOffset = Math.max(0, total - pageSize);
+  const clamped = Math.min(offset, maxOffset);
+  const window = lines.slice(clamped, clamped + pageSize);
 
   useInput(
-    (_input, key) => {
-      if (key.escape) onExit();
+    (input, key) => {
+      if (key.escape) return onExit();
+      if (key.upArrow || input === 'k') setOffset((o) => Math.max(0, o - 1));
+      else if (key.downArrow || input === 'j') setOffset((o) => Math.min(maxOffset, o + 1));
+      else if (input === ' ') setOffset((o) => Math.min(maxOffset, o + pageSize));
+      else if (input === 'b') setOffset((o) => Math.max(0, o - pageSize));
+      else if (input === 'g') setOffset(0);
+      else if (input === 'G') setOffset(maxOffset);
     },
     { isActive: focus },
   );
 
   return (
-    <Async state={state} loadingLabel="loading config…">
-      {(p) => (
-        <Box flexDirection="column">
-          {BLOCKS.map(({ title, pick }) => (
-            <Box key={title} flexDirection="column" marginBottom={1}>
-              <Text bold>{title}</Text>
-              <ConfigTree data={pick(p)} />
-            </Box>
-          ))}
-        </Box>
+    <Box flexDirection="column">
+      {window.map((l, i) =>
+        l.kind === 'title' ? (
+          <Text key={i} bold>
+            {l.text}
+          </Text>
+        ) : l.kind === 'empty' ? (
+          <Text key={i} dimColor>
+            {'  '}(empty)
+          </Text>
+        ) : (
+          <ConfigLineView key={i} line={l.line} />
+        ),
       )}
-    </Async>
+      <Text dimColor>
+        {total === 0 ? 0 : clamped + 1}-{Math.min(clamped + pageSize, total)} of {total} · ↑/↓ j/k · space/b page · g/G
+      </Text>
+    </Box>
   );
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 
-import { ConfigTree } from '../src/tui/components/ConfigTree.js';
+import { ConfigTree, flattenConfig } from '../src/tui/components/ConfigTree.js';
 
 describe('ConfigTree', () => {
   it('renders primitive key/values', () => {
@@ -42,5 +42,27 @@ describe('ConfigTree', () => {
   it('shows empty markers for empty objects and arrays', () => {
     expect(render(<ConfigTree data={{}} />).lastFrame()).toContain('(empty)');
     expect((render(<ConfigTree data={{ quotes: [] }} />).lastFrame() ?? '')).toContain('quotes: []');
+  });
+});
+
+describe('flattenConfig', () => {
+  it('flattens nested structs into ordered, depth-tagged lines for windowing', () => {
+    const data = { spread: { fields: { min: '10', max: '200' } }, fee_bps: '30' };
+    const lines = flattenConfig(data);
+    expect(lines).toEqual([
+      { depth: 0, label: 'spread', value: null },
+      { depth: 1, label: 'min', value: '10' },
+      { depth: 1, label: 'max', value: '200' },
+      { depth: 0, label: 'fee_bps', value: '30' },
+    ]);
+  });
+
+  it('flattens vectors with indexed children', () => {
+    const lines = flattenConfig({ quotes: ['SUI', 'DUSDC'] });
+    expect(lines).toEqual([
+      { depth: 0, label: 'quotes', value: null },
+      { depth: 1, label: '[0]', value: 'SUI' },
+      { depth: 1, label: '[1]', value: 'DUSDC' },
+    ]);
   });
 });
