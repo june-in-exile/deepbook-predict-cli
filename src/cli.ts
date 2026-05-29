@@ -4,6 +4,7 @@
 // this file is what `deepbook-predict <subcommand>` resolves to once installed.
 
 const commands: Readonly<Record<string, () => Promise<unknown>>> = {
+  tui: () => import('./tui.js'),
   setup: () => import('./scripts/setup.js'),
   inspect: () => import('./scripts/inspect.js'),
   markets: () => import('./scripts/markets.js'),
@@ -22,6 +23,9 @@ const commands: Readonly<Record<string, () => Promise<unknown>>> = {
 const printHelp = (): void => {
   process.stdout.write(
     `Usage: deepbook-predict <command> [options]
+
+Interactive:
+  tui                Full-screen TUI covering every command (default on a TTY)
 
 Read-only:
   setup              Check readiness + manager status
@@ -47,9 +51,19 @@ Pass --help to any subcommand for its flags.
 
 const main = async (): Promise<void> => {
   const subcommand = process.argv[2];
-  if (!subcommand || subcommand === '--help' || subcommand === '-h') {
+  if (subcommand === '--help' || subcommand === '-h') {
     printHelp();
-    process.exit(subcommand ? 0 : 1);
+    process.exit(0);
+  }
+  // No subcommand: launch the TUI on an interactive terminal, else print help
+  // (so pipes / non-TTY callers still get usage text, never a raw-mode crash).
+  if (!subcommand) {
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      await commands.tui!();
+      return;
+    }
+    printHelp();
+    process.exit(1);
   }
   const loader = commands[subcommand];
   if (!loader) {
