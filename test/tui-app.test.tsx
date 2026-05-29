@@ -49,4 +49,24 @@ describe('App', () => {
       expect(frame).toContain(label);
     }
   });
+
+  it('collapses the content panel back to the sidebar when ← is pressed on the first tab', async () => {
+    const ENTER = '\r';
+    const LEFT = '\x1B[D';
+    const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 20));
+
+    const { stdin, lastFrame } = renderApp('0x' + 'a'.repeat(64), true);
+    await tick();
+
+    stdin.write(ENTER); // open Account (tab 0 = Overview)
+    await tick();
+    // Footer reflects content focus once the panel is open.
+    expect(lastFrame() ?? '').toContain('esc back');
+
+    stdin.write(LEFT); // ← on the leftmost tab returns focus to the sidebar
+    await tick();
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('enter/→ open'); // sidebar footer
+    expect(frame).not.toContain('esc back');
+  });
 });

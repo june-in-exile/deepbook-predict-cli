@@ -38,7 +38,7 @@ const sharesToAmount = (shares: bigint, p: PredictState): bigint => {
 export const LpScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const app = useApp();
   const { ctx, quote, sender, canSign, refreshNonce } = app;
-  const [tab] = useTabs(2, focus);
+  const [tab] = useTabs(2, focus, onExit);
   const predictState = useAsync(() => getPredict(ctx), [refreshNonce]);
 
   const blocked = canSign ? undefined : 'set PRIVATE_KEY to sign';

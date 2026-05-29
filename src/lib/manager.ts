@@ -205,7 +205,7 @@ const fetchAllDynamicFields = async (
   return out;
 };
 
-const parsePositionEntry = (content: unknown): Position | null => {
+export const parsePositionEntry = (content: unknown): Position | null => {
   if (!content || typeof content !== 'object' || (content as { dataType?: string }).dataType !== 'moveObject') {
     return null;
   }
@@ -216,7 +216,10 @@ const parsePositionEntry = (content: unknown): Position | null => {
     oracleId: String(name.oracle_id ?? ''),
     expiryMs: readBigInt(name.expiry),
     strike: readBigInt(name.strike),
-    isUp: Boolean(name.is_up),
+    // On-chain MarketKey stores `direction` (u8: 0 = UP, 1 = DOWN) — there is
+    // no `is_up` field. Reading the wrong key here mislabels every UP position
+    // as DOWN, which makes redeem build the wrong market_key and abort.
+    isUp: readBigInt(name.direction) === 0n,
     quantity: readBigInt(value),
   });
 };

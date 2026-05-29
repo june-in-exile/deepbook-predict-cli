@@ -14,6 +14,6 @@ export const Tabs = ({ labels, index, focus }: TabsProps): React.ReactElement =>
         </Text>
       );
     })}
-    {focus ? <Text dimColor>{'  ←/→ switch'}</Text> : null}
+    {focus ? <Text dimColor>{'  ←/→ next · back'}</Text> : null}
   </Box>
 );

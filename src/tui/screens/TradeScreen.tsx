@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Text } from 'ink';
+import React, { useState } from 'react';
+import { Box, Text, useInput } from 'ink';
 
 import type { ScreenProps } from '../App.js';
 import { useApp } from '../state/AppContext.js';
@@ -8,6 +8,7 @@ import { useTabs } from '../hooks/useTabs.js';
 import { useValues } from '../hooks/useValues.js';
 import { Tabs } from '../components/Tabs.js';
 import { Async } from '../components/Async.js';
+import { Select } from '../components/Select.js';
 import { WriteForm } from '../components/WriteForm.js';
 import { formatDecimal, parseDecimalAmount } from '../../scripts/_cli.js';
 import { PRICE_DECIMALS, perUnitE9, shortId } from '../format.js';
@@ -18,12 +19,20 @@ import {
   listRangePositions,
 } from '../../lib/manager.js';
 import { Lifecycle, getOracle, type OracleState } from '../../lib/oracle.js';
-import { resolveOracle, pickPositionOracle, pickRangePositionOracle } from '../../lib/oracle-pick.js';
+import { resolveOracle } from '../../lib/oracle-pick.js';
 import { buildMintBinaryTx } from '../../ptb/mintBinary.js';
 import { buildMintRangeTx } from '../../ptb/mintRange.js';
 import { buildRedeemTx } from '../../ptb/redeem.js';
 import { buildRedeemRangeTx } from '../../ptb/redeemRange.js';
 import { previewBinary, previewRange } from '../preview.js';
+import {
+  buildRedeemItems,
+  redeemItemLabel,
+  redeemQtyError,
+  redeemTxPlan,
+  settledRangePayout,
+  type RedeemItem,
+} from '../redeem-items.js';
 
 const tryParse = (human: string, decimals: number): bigint | null => {
   try {
@@ -35,14 +44,13 @@ const tryParse = (human: string, decimals: number): bigint | null => {
 };
 
 export const TradeScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
-  const [tab] = useTabs(4, focus);
+  const [tab] = useTabs(3, focus, onExit);
   return (
     <Box flexDirection="column">
-      <Tabs labels={['Mint UP/DOWN', 'Mint Range', 'Redeem', 'Redeem Range']} index={tab} focus={focus} />
+      <Tabs labels={['Mint UP/DOWN', 'Mint Range', 'Redeem']} index={tab} focus={focus} />
       {tab === 0 ? <MintBinaryTab focus={focus} onExit={onExit} /> : null}
       {tab === 1 ? <MintRangeTab focus={focus} onExit={onExit} /> : null}
       {tab === 2 ? <RedeemTab focus={focus} onExit={onExit} /> : null}
-      {tab === 3 ? <RedeemRangeTab focus={focus} onExit={onExit} /> : null}
     </Box>
   );
 };
@@ -187,163 +195,132 @@ const MintRangeTab = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   );
 };
 
-// --- Redeem binary ---------------------------------------------------------
+// --- Redeem ----------------------------------------------------------------
+// Two-phase: pick a redeemable position from the manager, then redeem it (qty
+// pre-filled to the full position, editable for a partial redeem).
 const RedeemTab = ({ focus, onExit }: ScreenProps): React.ReactElement => {
   const app = useApp();
-  const { ctx, quote, sender, canSign, selectedOracleId, selectedManagerId, refreshNonce } = app;
-  const { values, setValue } = useValues({ strike: '', qty: '', direction: 'up' });
+  const { ctx, quote, selectedManagerId, refreshNonce } = app;
+  const { values, setValue } = useValues({ qty: '' });
+  const [selected, setSelected] = useState<RedeemItem | null>(null);
 
-  const strike = tryParse(values.strike ?? '', 9);
-  const qty = tryParse(values.qty ?? '', Number(quote.decimals));
-  const dir = (values.direction ?? '').trim().toLowerCase();
-  const isUp = dir === 'up';
-  const dirValid = dir === 'up' || dir === 'down';
-
-  // Resolve the oracle from selection, else from the matching manager position.
-  const oracleState = useAsync<OracleState | null>(async () => {
-    if (selectedOracleId) return getOracle(ctx, selectedOracleId);
-    if (!selectedManagerId || strike === null || !dirValid) return null;
+  const itemsState = useAsync<readonly RedeemItem[]>(async () => {
+    if (!selectedManagerId) return [];
     const m = await getManager(ctx, selectedManagerId);
-    const positions = await listBinaryPositions(ctx, m);
-    const match = pickPositionOracle(positions, strike, isUp);
-    return getOracle(ctx, match.oracleId);
-  }, [refreshNonce, selectedOracleId, selectedManagerId, values.strike, values.direction]);
+    const [bin, range] = await Promise.all([listBinaryPositions(ctx, m), listRangePositions(ctx, m)]);
+    return buildRedeemItems(bin, range);
+  }, [refreshNonce, selectedManagerId]);
+
+  // Esc returns to the sidebar only while picking; the form handles its own Esc.
+  useInput(
+    (_input, key) => {
+      if (key.escape) onExit();
+    },
+    { isActive: focus && selected === null },
+  );
+
+  if (selected !== null) {
+    return <RedeemForm item={selected} focus={focus} values={values} setValue={setValue} onBack={() => setSelected(null)} />;
+  }
+
+  if (!selectedManagerId) return <Text color="yellow">select a manager in Account first</Text>;
+
+  return (
+    <Async state={itemsState} loadingLabel="loading positions…">
+      {(items) =>
+        items.length === 0 ? (
+          <Text dimColor>no redeemable positions</Text>
+        ) : (
+          <Box flexDirection="column">
+            <Text dimColor>pick a position to redeem:</Text>
+            <Select
+              items={items.map((it) => ({ label: redeemItemLabel(it, quote.decimals), value: it }))}
+              focus={focus}
+              onSelect={(it) => {
+                setValue('qty', formatDecimal(it.pos.quantity, quote.decimals));
+                setSelected(it);
+              }}
+            />
+          </Box>
+        )
+      }
+    </Async>
+  );
+};
+
+const RedeemForm = ({
+  item,
+  focus,
+  values,
+  setValue,
+  onBack,
+}: {
+  item: RedeemItem;
+  focus: boolean;
+  values: Readonly<Record<string, string>>;
+  setValue: (key: string, value: string) => void;
+  onBack: () => void;
+}): React.ReactElement => {
+  const app = useApp();
+  const { ctx, quote, sender, canSign, selectedManagerId, refreshNonce } = app;
+  const qty = tryParse(values.qty ?? '', Number(quote.decimals));
+
+  const oracleState = useAsync<OracleState | null>(() => getOracle(ctx, item.pos.oracleId), [item.pos.oracleId, refreshNonce]);
   const oracle = oracleState.value;
 
   const previewState = useAsync(
     () =>
-      oracle && strike !== null && qty !== null && dirValid && oracle.lifecycle === Lifecycle.Active
-        ? previewBinary(ctx, sender ?? "", oracle, strike, qty, isUp).then((r) => r as { cost: bigint; payout: bigint } | null)
+      oracle && qty !== null && oracle.lifecycle === Lifecycle.Active
+        ? (item.kind === 'binary'
+            ? previewBinary(ctx, sender ?? '', oracle, item.pos.strike, qty, item.pos.isUp)
+            : previewRange(ctx, sender ?? '', oracle, item.pos.lowerStrike, item.pos.higherStrike, qty)
+          ).then((r) => r as { cost: bigint; payout: bigint } | null)
         : Promise.resolve(null),
-    [oracle?.id, values.strike, values.qty, values.direction, refreshNonce],
+    [oracle?.id, item.pos.oracleId, values.qty, refreshNonce],
   );
 
+  const settledPayout =
+    oracle && oracle.lifecycle === Lifecycle.Settled && qty !== null && item.kind === 'range'
+      ? settledRangePayout(oracle.settlementPrice, item.pos.lowerStrike, item.pos.higherStrike, qty)
+      : null;
+  const payout = settledPayout ?? previewState.value?.payout ?? null;
+
+  const qtyErr = redeemQtyError(qty, item.pos.quantity, quote.decimals);
   const quoteable = oracle && (oracle.lifecycle === Lifecycle.Active || oracle.lifecycle === Lifecycle.Settled);
-  const ready = canSign && sender !== null && selectedManagerId !== null && !!quoteable && dirValid && strike !== null && qty !== null;
-  const reason = !canSign ? 'read-only' : !selectedManagerId ? 'no manager' : !quoteable ? 'oracle not Active/Settled' : '';
+  const ready = canSign && sender !== null && selectedManagerId !== null && !!quoteable && qtyErr === null;
+  const reason = !canSign ? 'read-only' : !selectedManagerId ? 'no manager' : !quoteable ? 'oracle not Active/Settled' : qtyErr ?? '';
+  const label = redeemItemLabel(item, quote.decimals);
 
   return (
     <Box flexDirection="column">
-      {oracle ? <OracleLine oracle={oracle} /> : <Text dimColor>{oracleState.loading ? 'resolving oracle…' : 'enter strike/direction to match a position'}</Text>}
+      <Text dimColor>▸ {label}</Text>
+      {oracle ? <OracleLine oracle={oracle} /> : <Text dimColor>{oracleState.loading ? 'resolving oracle…' : ''}</Text>}
       <WriteForm
         focus={focus}
-        onExit={onExit}
-        fields={[
-          { key: 'strike', label: 'strike $', placeholder: '80500' },
-          { key: 'qty', label: `qty ${quote.symbol}`, placeholder: '5' },
-          { key: 'direction', label: 'direction', placeholder: 'up | down' },
-        ]}
+        onExit={onBack}
+        fields={[{ key: 'qty', label: `qty ${quote.symbol}`, placeholder: formatDecimal(item.pos.quantity, quote.decimals) }]}
         values={values}
         setValue={setValue}
         canRun={ready}
         blockedReason={reason}
         actionLabel="dry-run · redeem"
-        confirmMessage={`Redeem ${isUp ? 'UP' : 'DOWN'} strike ${values.strike} qty ${values.qty}?`}
-        buildTx={async () =>
-          buildRedeemTx(ctx, {
-            managerId: selectedManagerId ?? '',
-            oracleId: oracle?.id ?? '',
-            expiryMs: oracle?.expiryMs ?? 0n,
-            strike: strike ?? 0n,
-            isUp,
-            quantity: qty ?? 0n,
-            coinType: quote.coinType,
-          })
-        }
-        renderPreview={
-          <Text>
-            preview payout:{' '}
-            {previewState.value ? (
-              <Text color="green">{formatDecimal(previewState.value.payout, quote.decimals)} {quote.symbol}</Text>
-            ) : (
-              <Text dimColor>{oracle?.lifecycle === Lifecycle.Settled ? 'settled — payout fixed at settlement' : 'enter inputs'}</Text>
-            )}
-          </Text>
-        }
-      />
-    </Box>
-  );
-};
-
-// --- Redeem range ----------------------------------------------------------
-const RedeemRangeTab = ({ focus, onExit }: ScreenProps): React.ReactElement => {
-  const app = useApp();
-  const { ctx, quote, sender, canSign, selectedOracleId, selectedManagerId, refreshNonce } = app;
-  const { values, setValue } = useValues({ lower: '', higher: '', qty: '' });
-
-  const lower = tryParse(values.lower ?? '', 9);
-  const higher = tryParse(values.higher ?? '', 9);
-  const qty = tryParse(values.qty ?? '', Number(quote.decimals));
-  const rangeValid = lower !== null && higher !== null && higher > lower;
-
-  const oracleState = useAsync<OracleState | null>(async () => {
-    if (selectedOracleId) return getOracle(ctx, selectedOracleId);
-    if (!selectedManagerId || !rangeValid) return null;
-    const m = await getManager(ctx, selectedManagerId);
-    const positions = await listRangePositions(ctx, m);
-    const match = pickRangePositionOracle(positions, lower, higher);
-    return getOracle(ctx, match.oracleId);
-  }, [refreshNonce, selectedOracleId, selectedManagerId, values.lower, values.higher]);
-  const oracle = oracleState.value;
-
-  const settledPayout =
-    oracle && oracle.lifecycle === Lifecycle.Settled && qty !== null && rangeValid
-      ? oracle.settlementPrice !== null && oracle.settlementPrice >= lower && oracle.settlementPrice <= higher
-        ? qty
-        : 0n
-      : null;
-  const previewState = useAsync(
-    () =>
-      oracle && rangeValid && qty !== null && oracle.lifecycle === Lifecycle.Active
-        ? previewRange(ctx, sender ?? "", oracle, lower, higher, qty).then((r) => r as { cost: bigint; payout: bigint } | null)
-        : Promise.resolve(null),
-    [oracle?.id, values.lower, values.higher, values.qty, refreshNonce],
-  );
-  const payout = settledPayout ?? previewState.value?.payout ?? null;
-
-  const quoteable = oracle && (oracle.lifecycle === Lifecycle.Active || oracle.lifecycle === Lifecycle.Settled);
-  const ready = canSign && sender !== null && selectedManagerId !== null && !!quoteable && rangeValid && qty !== null;
-  const reason = !canSign ? 'read-only' : !selectedManagerId ? 'no manager' : !quoteable ? 'oracle not Active/Settled' : !rangeValid ? 'need higher > lower' : '';
-
-  return (
-    <Box flexDirection="column">
-      {oracle ? <OracleLine oracle={oracle} /> : <Text dimColor>{oracleState.loading ? 'resolving oracle…' : 'enter lower/higher to match a position'}</Text>}
-      <WriteForm
-        focus={focus}
-        onExit={onExit}
-        fields={[
-          { key: 'lower', label: 'lower $', placeholder: '80000' },
-          { key: 'higher', label: 'higher $', placeholder: '81000' },
-          { key: 'qty', label: `qty ${quote.symbol}`, placeholder: '5' },
-        ]}
-        values={values}
-        setValue={setValue}
-        canRun={ready}
-        blockedReason={reason}
-        actionLabel="dry-run · redeem range"
-        confirmMessage={`Redeem range (${values.lower}, ${values.higher}] qty ${values.qty}?`}
-        buildTx={async () =>
-          buildRedeemRangeTx(ctx, {
-            managerId: selectedManagerId ?? '',
-            oracleId: oracle?.id ?? '',
-            expiryMs: oracle?.expiryMs ?? 0n,
-            lower: lower ?? 0n,
-            higher: higher ?? 0n,
-            quantity: qty ?? 0n,
-            coinType: quote.coinType,
-          })
-        }
+        confirmMessage={`Redeem ${label} — qty ${values.qty}?`}
+        buildTx={async () => {
+          const plan = redeemTxPlan(item, qty ?? 0n, selectedManagerId ?? '', quote.coinType);
+          return plan.kind === 'binary' ? buildRedeemTx(ctx, plan.args) : buildRedeemRangeTx(ctx, plan.args);
+        }}
         renderPreview={
           <Text>
             preview payout:{' '}
             {payout !== null ? (
               <Text color="green">{formatDecimal(payout, quote.decimals)} {quote.symbol}</Text>
             ) : (
-              <Text dimColor>enter inputs</Text>
+              <Text dimColor>{oracle?.lifecycle === Lifecycle.Settled ? 'settled — payout fixed at settlement' : 'enter qty'}</Text>
             )}
           </Text>
         }
       />
+      <Text dimColor>esc · back to positions</Text>
     </Box>
   );
 };

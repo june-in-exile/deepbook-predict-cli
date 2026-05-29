@@ -31,7 +31,7 @@ import { buildWithdrawTx } from '../../ptb/withdraw.js';
 const LOW_BALANCE_THRESHOLD_RAW = 10_000_000n;
 
 export const AccountScreen = ({ focus, onExit }: ScreenProps): React.ReactElement => {
-  const [tab] = useTabs(3, focus);
+  const [tab] = useTabs(3, focus, onExit);
   return (
     <Box flexDirection="column">
       <Tabs labels={['Overview', 'Deposit', 'Withdraw']} index={tab} focus={focus} />
@@ -87,13 +87,20 @@ const Check = ({ ok, label }: { ok: boolean; label: string }): React.ReactElemen
 );
 
 /**
- * Fixed rows around the scrolling Overview body so the frame fits the terminal —
- * a frame taller than the viewport can't be cleared by Ink and piles up stale
- * copies. StatusBar (6) + content border (2) + scroll footer (1) + app footer (1)
- * = 10, plus one spare against resizes. The floor is `SECTIONS.length` so the
- * frame fills the sidebar-pinned height instead of painting blank rows beneath.
+ * Fixed rows around the scrolling Overview body so the frame stays *strictly*
+ * shorter than the terminal — a frame whose height merely reaches the viewport
+ * can't be cleared incrementally by Ink (it falls back to a full-screen write
+ * that desyncs its line tracker), so the next shorter screen leaves a stale
+ * copy piled on top. StatusBar (6) + content border (2) + Tabs label row (1) +
+ * Tabs marginBottom (1) + scroll footer (1) + app footer (1) = 12, plus one
+ * spare against resizes = 13. The Tabs block — both its label row and its
+ * bottom margin — is what Config's otherwise-identical budget omits; counting
+ * the margin is the difference between a frame that *reaches* the terminal
+ * height (which Ink can't incrementally clear) and one that stays strictly
+ * shorter. The floor is `SECTIONS.length` so the frame fills the sidebar-pinned
+ * height instead of painting blank rows beneath.
  */
-const CHROME_ROWS = 11;
+const CHROME_ROWS = 13;
 
 export const accountPageSize = (rows: number): number =>
   Math.max(SECTIONS.length, rows - CHROME_ROWS);
